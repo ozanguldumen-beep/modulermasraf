@@ -607,8 +607,7 @@ app.get("/expenses/new", requireLogin, (req, res) => {
         <label>Masraf Tarihi</label><input name="expense_date" id="expense_date" type="date" required>
         <label>Açıklama</label><textarea name="description"></textarea>
         <label>Fiş / Fatura Görseli</label><p class="muted">Fotoğraf seçince profesyonel OCR ile tutar ve tarih otomatik okunmaya çalışır. Göndermeden önce kontrol et.</p><p class="muted">Fotoğraf seçince profesyonel OCR ile tutar ve tarih otomatik okunmaya çalışır. Göndermeden önce kontrol et.</p><input name="receipt" id="receipt" type="file" accept="image/*,.pdf">
-        <button type="button" id="ocrBtn" class="secondary">Fişi Oku / Tutarı Otomatik Doldur</button>
-        <div id="ocrStatus" class="ocr-status">Fiş seçip “Fişi Oku” butonuna bas.</div>
+        <button type="button" id="ocrBtn" class="secondary" onclick="return runOcrNow(event);">Fişi Oku / Tutarı Otomatik Doldur</button>
         <div id="ocrStatus" class="ocr-status">Fiş seçip “Fişi Oku” butonuna bas.</div>
         <button>Onaya Gönder</button>
       </form>

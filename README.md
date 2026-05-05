@@ -79,3 +79,11 @@ Azure Image Analysis API `features=read` ile OCR sonucu döndürür.
 - Fiş seçildikten sonra kullanıcı butona basar.
 - Buton `/api/ocr` endpointine dosyayı upload eder.
 - Sonuç gelirse tutar ve tarih otomatik doldurulur.
+
+
+## v11 OCR Buton Fix
+
+- OCR butonu `onclick="runOcrNow(event)"` ile doğrudan bağlandı.
+- Buton type=button olarak sabitlendi, formu submit etmez.
+- JavaScript yüklenince console'da `Modüler Masraf OCR v11 yüklendi` yazar.
+- API key kontrolü `/api/ocr-status` üzerinden yapılır.
