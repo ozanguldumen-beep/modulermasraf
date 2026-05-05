@@ -1,27 +1,26 @@
-# Modüler Masraf App - OCR + Fiş Görseli
+# Modüler Masraf Standalone
 
-## Kurulum
+Bitrix24 bağlantısı olmayan bağımsız masraf yönetim uygulaması.
 
-1. ZIP dosyasını klasöre çıkar.
-2. `config.js` dosyasını aç.
-3. Çalışan Bitrix24 webhook adresini yaz:
+## Roller
 
-```js
-const WEBHOOK = "https://modulerotomasyon.bitrix24.com.tr/rest/12/xxxxxxxxxxxx/";
-```
+- Satışçı
+- Yönetici / Onaycı
+- Muhasebe
+- Finans
+- Admin
 
-4. `index.html` dosyasına çift tıkla.
-5. Fiş fotoğrafını seç.
-6. Tutarı kontrol et.
-7. Bitrix24’e gönder.
+## Akış
 
-## Ne yapar?
+Satışçı masraf girer -> Yönetici onaylar -> Muhasebe kontrol eder -> Finans ödeme yapar -> Ödendi.
 
-- CRM > Anlaşmalar içine masraf kaydı açar.
-- OCR ile tutarı okumaya çalışır.
-- Fiş görselini JPEG olarak küçültür.
-- Fiş görselini ilgili anlaşmanın timeline yorumuna ekler.
+## Railway Variables
 
-## Not
+SESSION_SECRET=uzun-gizli-bir-key
+ADMIN_EMAIL=admin@modulermasraf.com
+ADMIN_PASSWORD=guclu-sifre
 
-Görsel ekleme için webhook izinlerinde CRM izni olmalı.
+## Çalıştırma
+
+npm install
+npm start
