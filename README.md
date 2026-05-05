@@ -30,3 +30,36 @@ Varsayılan şifre: 123456
 - Masraf eklerken fiş/fatura fotoğrafı seçildiğinde tarayıcı içinde OCR çalışır.
 - OCR tutarı ve tarihi otomatik doldurmaya çalışır.
 - OCR ücretsizdir, dış API maliyeti yoktur.
+
+
+## v8 Profesyonel OCR
+
+Bu sürümde tarayıcı içi OCR kaldırıldı. Fiş görseli sunucuya gider, sunucu Google Vision veya Azure Vision ile okur.
+
+### Google Vision Kurulumu
+
+Railway Variables içine ekle:
+
+```text
+OCR_PROVIDER=google
+GOOGLE_VISION_API_KEY=BURAYA_GOOGLE_API_KEY
+```
+
+Google Cloud Vision API görsel verisini Base64 içerik olarak alabilir ve OCR yapabilir.
+
+### Azure Vision Kurulumu
+
+Railway Variables içine ekle:
+
+```text
+OCR_PROVIDER=azure
+AZURE_VISION_ENDPOINT=https://xxx.cognitiveservices.azure.com
+AZURE_VISION_KEY=BURAYA_AZURE_KEY
+```
+
+Azure Image Analysis API `features=read` ile OCR sonucu döndürür.
+
+### Not
+
+- API key eklenmezse OCR hata verir ama masrafı elle girmeye devam edebilirsin.
+- Tutar ve tarih otomatik doldurulur; kullanıcı göndermeden önce kontrol etmelidir.

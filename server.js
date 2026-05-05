@@ -252,6 +252,7 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({ storage });
+const ocrUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 
 function requireLogin(req, res, next) {
   if (!req.session.user) return res.redirect("/login");
@@ -385,6 +386,146 @@ async function logOrSendMail(db, subject, text) {
   saveDb(latest);
 }
 
+
+function normalizeAmountValue(value) {
+  if (!value) return "";
+  let v = String(value).trim();
+
+  if (v.includes(".") && v.includes(",")) {
+    v = v.replace(/\./g, "").replace(",", ".");
+  } else {
+    v = v.replace(",", ".");
+  }
+
+  const num = parseFloat(v);
+  return isNaN(num) ? "" : num.toFixed(2);
+}
+
+function extractAmountFromText(text) {
+  if (!text) return null;
+  const cleaned = text.replace(/\s/g, " ");
+
+  const priorityRegex = /(TOPLAM|TOTAL|GENEL TOPLAM|TUTAR|ÖDENECEK|ODENECEK|KREDI|KREDİ|NAKİT|NAKIT|KART)[^\d]{0,45}(\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\d+[.,]\d{2})/i;
+  const priorityMatch = cleaned.match(priorityRegex);
+  if (priorityMatch && priorityMatch[2]) return normalizeAmountValue(priorityMatch[2]);
+
+  const matches = cleaned.match(/(\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\d+[.,]\d{2})/g);
+  if (!matches || !matches.length) return null;
+
+  const sorted = matches
+    .map(v => ({ raw: v, num: parseFloat(normalizeAmountValue(v)) }))
+    .filter(x => !isNaN(x.num) && x.num > 0)
+    .sort((a, b) => b.num - a.num);
+
+  return sorted.length ? sorted[0].num.toFixed(2) : null;
+}
+
+function extractDateFromText(text) {
+  if (!text) return null;
+  const m = text.match(/(\d{1,2})[./-](\d{1,2})[./-](20\d{2}|\d{2})/);
+  if (!m) return null;
+
+  let day = m[1].padStart(2, "0");
+  let month = m[2].padStart(2, "0");
+  let year = m[3];
+  if (year.length === 2) year = "20" + year;
+
+  return `${year}-${month}-${day}`;
+}
+
+async function runGoogleVisionOCR(fileBuffer) {
+  const apiKey = process.env.GOOGLE_VISION_API_KEY;
+  if (!apiKey) throw new Error("GOOGLE_VISION_API_KEY tanımlı değil.");
+
+  const body = {
+    requests: [
+      {
+        image: { content: fileBuffer.toString("base64") },
+        features: [{ type: "TEXT_DETECTION" }],
+        imageContext: { languageHints: ["tr", "en"] }
+      }
+    ]
+  };
+
+  const response = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  const data = await response.json();
+  if (!response.ok || data.error) {
+    throw new Error(data.error?.message || "Google Vision OCR hatası.");
+  }
+
+  return data.responses?.[0]?.fullTextAnnotation?.text ||
+         data.responses?.[0]?.textAnnotations?.[0]?.description ||
+         "";
+}
+
+async function runAzureVisionOCR(fileBuffer, mimeType) {
+  const endpoint = (process.env.AZURE_VISION_ENDPOINT || "").replace(/\/$/, "");
+  const key = process.env.AZURE_VISION_KEY;
+  if (!endpoint || !key) throw new Error("AZURE_VISION_ENDPOINT veya AZURE_VISION_KEY tanımlı değil.");
+
+  const url = `${endpoint}/computervision/imageanalysis:analyze?api-version=2024-02-01&features=read&language=tr`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Ocp-Apim-Subscription-Key": key,
+      "Content-Type": mimeType || "application/octet-stream"
+    },
+    body: fileBuffer
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error?.message || "Azure Vision OCR hatası.");
+  }
+
+  const lines = [];
+  const blocks = data.readResult?.blocks || [];
+  for (const block of blocks) {
+    for (const line of (block.lines || [])) {
+      if (line.text) lines.push(line.text);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+async function runProfessionalOCR(fileBuffer, mimeType) {
+  const provider = (process.env.OCR_PROVIDER || "google").toLowerCase();
+
+  if (provider === "azure") {
+    return await runAzureVisionOCR(fileBuffer, mimeType);
+  }
+
+  return await runGoogleVisionOCR(fileBuffer);
+}
+
+app.post("/api/ocr", requireLogin, ocrUpload.single("receipt"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ ok: false, error: "Fiş dosyası gelmedi." });
+
+    const text = await runProfessionalOCR(req.file.buffer, req.file.mimetype);
+    const amount = extractAmountFromText(text);
+    const date = extractDateFromText(text);
+
+    res.json({
+      ok: true,
+      provider: (process.env.OCR_PROVIDER || "google").toLowerCase(),
+      amount,
+      date,
+      text: text.substring(0, 3000)
+    });
+  } catch (err) {
+    console.error("OCR error:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 app.get("/login", (req, res) => {
   res.send(layout("Giriş", null, `
     <div class="card small">
@@ -454,7 +595,7 @@ app.get("/expenses/new", requireLogin, (req, res) => {
         <label>Para Birimi</label><select name="currency"><option>TRY</option><option>USD</option><option>EUR</option></select>
         <label>Masraf Tarihi</label><input name="expense_date" id="expense_date" type="date" required>
         <label>Açıklama</label><textarea name="description"></textarea>
-        <label>Fiş / Fatura Görseli</label><p class="muted">Fotoğraf seçince tutar ve tarih otomatik okunmaya çalışır. Göndermeden önce kontrol et.</p><input name="receipt" id="receipt" type="file" accept="image/*,.pdf">
+        <label>Fiş / Fatura Görseli</label><p class="muted">Fotoğraf seçince profesyonel OCR ile tutar ve tarih otomatik okunmaya çalışır. Göndermeden önce kontrol et.</p><p class="muted">Fotoğraf seçince profesyonel OCR ile tutar ve tarih otomatik okunmaya çalışır. Göndermeden önce kontrol et.</p><input name="receipt" id="receipt" type="file" accept="image/*,.pdf">
         <button>Onaya Gönder</button>
       </form>
     </div>

@@ -10,85 +10,36 @@ document.addEventListener("DOMContentLoaded", () => {
     const file = fileInput.files && fileInput.files[0];
     if (!file) return;
 
-    if (!window.Tesseract) {
-      if (status) status.textContent = "OCR kütüphanesi yüklenemedi. Tutarı elle yazabilirsin.";
-      return;
-    }
-
     try {
-      if (status) status.textContent = "Fiş okunuyor... İlk okumada biraz sürebilir.";
+      if (status) status.textContent = "Profesyonel OCR fişi okuyor...";
 
-      const result = await Tesseract.recognize(file, "tur+eng", {
-        logger: m => {
-          if (status && m.status === "recognizing text") {
-            status.textContent = "Fiş okunuyor: %" + Math.round((m.progress || 0) * 100);
-          }
-        }
+      const formData = new FormData();
+      formData.append("receipt", file);
+
+      const response = await fetch("/api/ocr", {
+        method: "POST",
+        body: formData
       });
 
-      const text = (result && result.data && result.data.text) ? result.data.text : "";
-      const amount = extractAmount(text);
-      const date = extractDate(text);
+      const result = await response.json();
 
-      if (amount && !amountInput.value) amountInput.value = normalizeAmount(amount);
-      if (date && dateInput && !dateInput.value) dateInput.value = date;
+      if (!result.ok) {
+        if (status) status.textContent = "OCR hata: " + (result.error || "Bilinmeyen hata");
+        return;
+      }
+
+      if (result.amount && !amountInput.value) amountInput.value = result.amount;
+      if (result.date && dateInput && !dateInput.value) dateInput.value = result.date;
 
       if (status) {
-        status.textContent = "OCR tamamlandı. " +
-          (amount ? "Tutar bulundu: " + normalizeAmount(amount) + ". " : "Tutar bulunamadı. ") +
-          (date ? "Tarih bulundu: " + date + "." : "Tarih bulunamadı.");
+        status.textContent =
+          "OCR tamamlandı (" + result.provider + "). " +
+          (result.amount ? "Tutar: " + result.amount + ". " : "Tutar bulunamadı. ") +
+          (result.date ? "Tarih: " + result.date + "." : "Tarih bulunamadı.");
       }
     } catch (err) {
       console.error(err);
-      if (status) status.textContent = "OCR hata verdi. Tutarı elle yazabilirsin.";
+      if (status) status.textContent = "OCR bağlantı hatası. Tutarı elle yazabilirsin.";
     }
   });
 });
-
-function extractAmount(text) {
-  if (!text) return null;
-  const cleaned = text.replace(/\s/g, " ");
-
-  const priorityRegex = /(TOPLAM|TOTAL|GENEL TOPLAM|TUTAR|ÖDENECEK|ODENECEK|KREDI|KREDİ)[^\d]{0,35}(\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\d+[.,]\d{2})/i;
-  const priorityMatch = cleaned.match(priorityRegex);
-  if (priorityMatch && priorityMatch[2]) return priorityMatch[2];
-
-  const matches = cleaned.match(/(\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\d+[.,]\d{2})/g);
-  if (!matches || !matches.length) return null;
-
-  const sorted = matches
-    .map(v => ({ raw: v, num: parseFloat(normalizeAmount(v)) }))
-    .filter(x => !isNaN(x.num) && x.num > 0)
-    .sort((a, b) => b.num - a.num);
-
-  return sorted.length ? sorted[0].raw : null;
-}
-
-function normalizeAmount(value) {
-  if (!value) return "";
-  let v = String(value).trim();
-
-  if (v.includes(".") && v.includes(",")) {
-    v = v.replace(/\./g, "").replace(",", ".");
-  } else {
-    v = v.replace(",", ".");
-  }
-
-  const num = parseFloat(v);
-  return isNaN(num) ? "" : num.toFixed(2);
-}
-
-function extractDate(text) {
-  if (!text) return null;
-
-  const m = text.match(/(\d{1,2})[./-](\d{1,2})[./-](20\d{2}|\d{2})/);
-  if (!m) return null;
-
-  let day = m[1].padStart(2, "0");
-  let month = m[2].padStart(2, "0");
-  let year = m[3];
-
-  if (year.length === 2) year = "20" + year;
-
-  return `${year}-${month}-${day}`;
-}
