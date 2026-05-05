@@ -71,3 +71,11 @@ Azure Image Analysis API `features=read` ile OCR sonucu döndürür.
 - Masraf ekleme ekranında OCR durum kutusu görünür.
 - Fotoğraf seçilince direkt `/api/ocr` çağrılır.
 - `/api/ocr-status` ile Railway OCR variable kontrolü eklenmiştir.
+
+
+## v10 OCR Button
+
+- Otomatik change event yerine sağlam bir "Fişi Oku" butonu eklendi.
+- Fiş seçildikten sonra kullanıcı butona basar.
+- Buton `/api/ocr` endpointine dosyayı upload eder.
+- Sonuç gelirse tutar ve tarih otomatik doldurulur.

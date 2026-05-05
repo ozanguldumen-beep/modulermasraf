@@ -34,3 +34,10 @@ pre{white-space:pre-wrap}
   font-weight:700;
   font-size:14px;
 }
+
+button.secondary{
+  background:#eef4ff;
+  color:#123c69;
+  border:1px solid #b8cff8;
+  margin-top:10px;
+}

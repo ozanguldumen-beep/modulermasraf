@@ -1,4 +1,4 @@
-console.log("Modüler Masraf OCR v9 yüklendi");
+console.log("Modüler Masraf OCR v10 yüklendi");
 
 function setOcrStatus(message) {
   let status = document.getElementById("ocrStatus");
@@ -7,82 +7,76 @@ function setOcrStatus(message) {
     status.id = "ocrStatus";
     status.className = "ocr-status";
     const fileInput = document.querySelector('#receipt, input[name="receipt"], input[type="file"]');
-    if (fileInput && fileInput.parentNode) {
-      fileInput.parentNode.insertBefore(status, fileInput.nextSibling);
-    } else {
-      document.body.prepend(status);
-    }
+    if (fileInput && fileInput.parentNode) fileInput.parentNode.insertBefore(status, fileInput.nextSibling);
   }
-  status.textContent = message;
+  if (status) status.textContent = message;
 }
 
-async function checkOcrConfig() {
+async function runOcrNow() {
+  const fileInput = document.querySelector('#receipt, input[name="receipt"], input[type="file"]');
+  const amountInput = document.querySelector('#amount, input[name="amount"]');
+  const dateInput = document.querySelector('#expense_date, input[name="expense_date"]');
+
+  const file = fileInput && fileInput.files && fileInput.files[0];
+
+  if (!file) {
+    setOcrStatus("Önce fiş/fatura fotoğrafı seçmelisin.");
+    return;
+  }
+
   try {
-    const res = await fetch("/api/ocr-status");
-    const data = await res.json();
-    console.log("OCR config:", data);
-    if (!data.googleKey && data.provider === "google") {
-      setOcrStatus("OCR ayarı eksik: Railway Variables içinde GOOGLE_VISION_API_KEY görünmüyor.");
+    setOcrStatus("Fiş sunucuya yükleniyor ve OCR okunuyor...");
+
+    const formData = new FormData();
+    formData.append("receipt", file);
+
+    const response = await fetch("/api/ocr", {
+      method: "POST",
+      body: formData
+    });
+
+    const result = await response.json();
+    console.log("OCR result:", result);
+
+    if (!response.ok || !result.ok) {
+      setOcrStatus("OCR hata: " + (result.error || response.statusText || "Bilinmeyen hata"));
+      return;
     }
-  } catch (e) {
-    console.warn("OCR status kontrol edilemedi:", e);
+
+    if (result.amount && amountInput) amountInput.value = result.amount;
+    if (result.date && dateInput) dateInput.value = result.date;
+
+    setOcrStatus(
+      "OCR tamamlandı (" + result.provider + "). " +
+      (result.amount ? "Tutar: " + result.amount + ". " : "Tutar bulunamadı. ") +
+      (result.date ? "Tarih: " + result.date + "." : "Tarih bulunamadı.")
+    );
+  } catch (err) {
+    console.error("OCR frontend error:", err);
+    setOcrStatus("OCR bağlantı hatası: " + err.message);
   }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   const fileInput = document.querySelector('#receipt, input[name="receipt"], input[type="file"]');
-  const amountInput = document.querySelector('#amount, input[name="amount"]');
-  const dateInput = document.querySelector('#expense_date, input[name="expense_date"]');
+  if (!fileInput) return;
 
-  if (!fileInput) {
-    console.log("OCR: fiş input bulunamadı; bu sayfada OCR yok.");
-    return;
+  let btn = document.getElementById("ocrBtn");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.type = "button";
+    btn.id = "ocrBtn";
+    btn.className = "secondary";
+    btn.textContent = "Fişi Oku / Tutarı Otomatik Doldur";
+    fileInput.parentNode.insertBefore(btn, fileInput.nextSibling);
   }
 
-  setOcrStatus("OCR hazır. Fotoğraf seçince otomatik başlayacak.");
-  checkOcrConfig();
+  btn.addEventListener("click", runOcrNow);
 
-  fileInput.addEventListener("change", async () => {
+  fileInput.addEventListener("change", () => {
     const file = fileInput.files && fileInput.files[0];
-    if (!file) return;
-
-    try {
-      setOcrStatus("Profesyonel OCR fişi okuyor... Lütfen bekle.");
-
-      const formData = new FormData();
-      formData.append("receipt", file);
-
-      const response = await fetch("/api/ocr", {
-        method: "POST",
-        body: formData
-      });
-
-      let result;
-      try {
-        result = await response.json();
-      } catch (e) {
-        const raw = await response.text();
-        throw new Error("OCR JSON dönmedi: " + raw.slice(0, 200));
-      }
-
-      console.log("OCR result:", result);
-
-      if (!response.ok || !result.ok) {
-        setOcrStatus("OCR hata: " + (result.error || response.statusText || "Bilinmeyen hata"));
-        return;
-      }
-
-      if (result.amount && amountInput && !amountInput.value) amountInput.value = result.amount;
-      if (result.date && dateInput && !dateInput.value) dateInput.value = result.date;
-
-      setOcrStatus(
-        "OCR tamamlandı (" + result.provider + "). " +
-        (result.amount ? "Tutar: " + result.amount + ". " : "Tutar bulunamadı. ") +
-        (result.date ? "Tarih: " + result.date + "." : "Tarih bulunamadı.")
-      );
-    } catch (err) {
-      console.error("OCR frontend error:", err);
-      setOcrStatus("OCR bağlantı hatası: " + err.message);
-    }
+    setOcrStatus(file ? "Fiş seçildi. OCR için “Fişi Oku” butonuna bas." : "Fiş seçip “Fişi Oku” butonuna bas.");
   });
+
+  setOcrStatus("Fiş seçip “Fişi Oku” butonuna bas.");
 });
