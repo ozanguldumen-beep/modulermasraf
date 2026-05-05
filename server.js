@@ -20,10 +20,21 @@ if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
 
 const DEFAULT_PASSWORD = process.env.DEFAULT_USER_PASSWORD || "123456";
 
+
+function getManagerCandidates(db, excludeId = null) {
+  return db.users.filter(u => {
+    if (u.active === false) return false;
+    if (excludeId && u.id === excludeId) return false;
+    return ["sales_manager", "technical_manager", "accounting_manager", "finance", "admin"].includes(u.role);
+  });
+}
+
 function roleLabel(role) {
   return {
-    salesperson: "Satışçı",
-    sales_manager: "Satış Müdürü",
+    sales_responsible: "Satış Sorumlusu",
+    salesperson: "Satış Sorumlusu",
+    sales_manager: "Satış Yöneticisi",
+    sales_director: "Satış Müdürü",
     technical_manager: "Teknik Müdür",
     technical_staff: "Teknik Destek",
     accounting_staff: "Muhasebe Sorumlusu",
@@ -31,16 +42,24 @@ function roleLabel(role) {
     front_office: "Ön Büro Sorumlusu",
     marketing_manager: "Pazarlama Yöneticisi",
     warehouse: "Depo Sorumlusu",
-    finance: "Finans",
-    admin: "Gizli Admin"
+    finance_manager: "Finans Müdürü",
+    finance: "Finans Müdürü",
+    admin: "Sistem Yöneticisi"
   }[role] || role;
+}
+
+function displayCompanyRole(u) {
+  return u.company_role || u.title || roleLabel(u.role);
 }
 
 function statusLabel(status) {
   return {
-    sales_manager_approval: "Satış Müdürü Onayı Bekliyor",
+    sales_manager_approval: "Satış Yöneticisi Onayı Bekliyor",
+    sales_director_approval: "Satış Müdürü Onayı Bekliyor",
     technical_manager_review: "Teknik Müdür Kontrolünde",
-    finance_approval: "Finans Onayı Bekliyor",
+    accounting_manager_approval: "Muhasebe Müdürü Onayı Bekliyor",
+    finance_manager_approval: "Finans Müdürü Onayı Bekliyor",
+    finance_approval: "Finans Müdürü Onayı Bekliyor",
     accounting_payment_list: "Muhasebe Ödeme Listesinde",
     paid: "Ödendi",
     rejected: "Reddedildi",
@@ -64,6 +83,33 @@ function saveDb(db) {
   fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
 }
 
+function isProtectedUser(user) {
+  if (!user) return false;
+  const email = String(user.email || "").toLowerCase();
+  return (
+    email === "ozan@modulerotomasyon.com" ||
+    email === "celal@modulerotomasyon.com" ||
+    email === "celal.esli@modulerotomasyon.com" ||
+    user.full_access === true
+  );
+}
+
+function normalizeSeedData(db) {
+  // Destek Mail hiçbir şekilde kullanıcı listesinde kalmasın.
+  db.users = db.users.filter(u => String(u.email || "").toLowerCase() !== "destek@akuvoxinterkom.com");
+
+  // Ozan ve Celal kritik kullanıcıdır; pasif yapılamaz, silinemez.
+  db.users.forEach(u => {
+    const email = String(u.email || "").toLowerCase();
+    if (email === "ozan@modulerotomasyon.com" || email === "celal@modulerotomasyon.com" || email === "celal.esli@modulerotomasyon.com") {
+      u.active = true;
+      u.full_access = true;
+    }
+  });
+
+  saveDb(db);
+}
+
 function upsertUser(db, user) {
   const existing = db.users.find(u => u.email === user.email);
   if (existing) {
@@ -72,6 +118,7 @@ function upsertUser(db, user) {
     existing.role = existing.role || user.role;
     existing.department = existing.department || user.department || "";
     existing.title = existing.title || user.title || "";
+    existing.company_role = existing.company_role || user.company_role || user.title || roleLabel(user.role);
     existing.extension = existing.extension || user.extension || "";
     if (existing.manager_id === undefined) existing.manager_id = user.manager_id || null;
     if (existing.full_access === undefined) existing.full_access = !!user.full_access;
@@ -89,6 +136,7 @@ function upsertUser(db, user) {
     extension: user.extension || "",
     department: user.department || "",
     title: user.title || "",
+    company_role: user.company_role || user.title || roleLabel(user.role),
     iban: user.iban || "",
     active: user.active !== false,
     full_access: !!user.full_access,
@@ -105,7 +153,8 @@ function ensureSeedUsers() {
     email: process.env.ADMIN_EMAIL || "ozan@modulerotomasyon.com",
     password: process.env.ADMIN_PASSWORD || DEFAULT_PASSWORD,
     role: "admin",
-    title: "Elektronik Mühendisi / Satış Müdürü",
+    title: "Satış Müdürü / Şirket Ortağı",
+    company_role: "Satış Müdürü / Şirket Ortağı",
     department: "Modüler Otomasyon Yönetim",
     extension: "113",
     full_access: true
@@ -115,8 +164,9 @@ function ensureSeedUsers() {
     name: "Celal Eşli",
     email: process.env.CELAL_EMAIL || "celal@modulerotomasyon.com",
     password: process.env.CELAL_PASSWORD || DEFAULT_PASSWORD,
-    role: "finance",
-    title: "Finans / Ortak",
+    role: "finance_manager",
+    title: "Finans Müdürü / Şirket Ortağı",
+    company_role: "Finans Müdürü / Şirket Ortağı",
     department: "Modüler Otomasyon Yönetim",
     full_access: true
   });
@@ -125,7 +175,8 @@ function ensureSeedUsers() {
     name: "Ferhat Halis Polat",
     email: "halis.polat@modulerotomasyon.com",
     role: "technical_manager",
-    title: "Teknik Ekip Müdürü",
+    title: "Teknik Müdür",
+    company_role: "Teknik Müdür",
     department: "Teknik Departmanı",
     extension: "120",
     manager_id: ozanId
@@ -136,19 +187,20 @@ function ensureSeedUsers() {
     email: "seren.sarikaya@modulerotomasyon.com",
     role: "accounting_manager",
     title: "Muhasebe Müdürü",
+    company_role: "Muhasebe Müdürü",
     department: "Muhasebe Departmanı",
     extension: "111",
     manager_id: ozanId
   });
 
   const users = [
-    ["Duygu Genç", "duygu.genc@modulerotomasyon.com", "accounting_staff", "Muhasebe", "Muhasebe Departmanı", "112", serenId],
+    ["Duygu Genç", "duygu.genc@modulerotomasyon.com", "accounting_staff", "Muhasebe Sorumlusu", "Muhasebe Departmanı", "112", serenId],
     ["Sıla Sağlam", "sila.saglam@modulerotomasyon.com", "front_office", "Ön Büro Sorumlusu", "Muhasebe Departmanı", "122", serenId],
-    ["Abdullah Uğraş", "abdullah.ugras@modulerotomasyon.com", "salesperson", "Satış Yöneticisi", "Satış Departmanı", "117", ozanId],
-    ["Özmen Aykaç", "ozmen.aykac@modulerotomasyon.com", "salesperson", "Satış Yöneticisi", "Satış Departmanı", "128", ozanId],
-    ["Mustafa Sezgin", "mustafa.sezgin@modulerotomasyon.com", "salesperson", "Satış Yöneticisi", "Satış Departmanı", "126", ozanId],
-    ["Berkay Ulufer", "berkay.ulufer@modulerotomasyon.com", "salesperson", "Satış Yöneticisi", "Satış Departmanı", "114", ozanId],
-    ["Semih Vardarboylu", "semih.vardarboylu@modulerotomasyon.com", "salesperson", "Satış Yöneticisi", "Satış Departmanı", "123", ozanId],
+    ["Abdullah Uğraş", "abdullah.ugras@modulerotomasyon.com", "sales_manager", "Satış Yöneticisi", "Satış Departmanı", "117", ozanId],
+    ["Özmen Aykaç", "ozmen.aykac@modulerotomasyon.com", "sales_manager", "Satış Yöneticisi", "Satış Departmanı", "128", ozanId],
+    ["Mustafa Sezgin", "mustafa.sezgin@modulerotomasyon.com", "sales_responsible", "Satış Sorumlusu", "Satış Departmanı", "126", ozanId],
+    ["Berkay Ulufer", "berkay.ulufer@modulerotomasyon.com", "sales_manager", "Satış Yöneticisi", "Satış Departmanı", "114", ozanId],
+    ["Semih Vardarboylu", "semih.vardarboylu@modulerotomasyon.com", "sales_manager", "Satış Yöneticisi", "Satış Departmanı", "123", ozanId],
     ["Gizem Özdamar", "gizem.ozdamar@modulerotomasyon.com", "marketing_manager", "Pazarlama Yöneticisi", "Pazarlama Departmanı", "121", ozanId],
     ["Onur Can Yıldırım", "onurcan.yildirim@modulerotomasyon.com", "technical_staff", "Teknik Destek", "Teknik Departmanı", "115", ferhatId],
     ["Güven İrgin", "guven.irgin@modulerotomasyon.com", "technical_staff", "Teknik Destek", "Teknik Departmanı", "119", ferhatId],
@@ -158,12 +210,27 @@ function ensureSeedUsers() {
   ];
 
   users.forEach(([name, email, role, title, department, extension, manager_id]) => {
-    upsertUser(db, { name, email, role, title, department, extension, manager_id });
+    upsertUser(db, { name, email, role, title, company_role: title, department, extension, manager_id });
+  });
+
+  // Mevcut Railway veritabanında daha önce yanlış rol ile oluşan kullanıcıları güvenli şekilde düzelt.
+  const salesManagerEmails = [
+    "abdullah.ugras@modulerotomasyon.com",
+    "ozmen.aykac@modulerotomasyon.com",
+    "berkay.ulufer@modulerotomasyon.com",
+    "semih.vardarboylu@modulerotomasyon.com"
+  ];
+  db.users.forEach(u => {
+    if (salesManagerEmails.includes(u.email)) { u.role = "sales_manager"; u.company_role = u.company_role || "Satış Yöneticisi"; u.title = u.title || "Satış Yöneticisi"; u.manager_id = u.manager_id || ozanId; }
+    if (u.email === "mustafa.sezgin@modulerotomasyon.com") { u.role = u.role || "sales_responsible"; u.company_role = u.company_role || "Satış Sorumlusu"; u.title = u.title || "Satış Sorumlusu"; }
+    if (u.email === "celal@modulerotomasyon.com" || u.name === "Celal Eşli") { u.role = "finance_manager"; u.company_role = "Finans Müdürü / Şirket Ortağı"; u.full_access = true; }
+    if (u.email === (process.env.ADMIN_EMAIL || "ozan@modulerotomasyon.com") || u.name === "Ozan Güldümen") { u.company_role = "Satış Müdürü / Şirket Ortağı"; u.full_access = true; }
   });
 
   saveDb(db);
 }
 ensureSeedUsers();
+normalizeSeedData(loadDb());
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -207,16 +274,19 @@ function nextStatusFor(user, status, db) {
   const u = dbUserFor(user, db);
   if (user.role === "admin" || (u && u.full_access && status !== "accounting_payment_list")) {
     return {
-      sales_manager_approval: "technical_manager_review",
-      technical_manager_review: "finance_approval",
+      sales_manager_approval: "sales_director_approval",
+      sales_director_approval: "accounting_manager_approval",
+      accounting_manager_approval: "finance_manager_approval",
+      finance_manager_approval: "accounting_payment_list",
       finance_approval: "accounting_payment_list",
       accounting_payment_list: "paid",
       missing_document: "sales_manager_approval"
     }[status] || status;
   }
-  if (user.role === "sales_manager" && status === "sales_manager_approval") return "technical_manager_review";
-  if (user.role === "technical_manager" && status === "technical_manager_review") return "finance_approval";
-  if (user.role === "finance" && status === "finance_approval") return "accounting_payment_list";
+  if (user.role === "sales_manager" && status === "sales_manager_approval") return "sales_director_approval";
+  if ((user.role === "sales_director" || user.role === "admin") && status === "sales_director_approval") return "accounting_manager_approval";
+  if (user.role === "accounting_manager" && status === "accounting_manager_approval") return "finance_manager_approval";
+  if (user.role === "finance_manager" && status === "finance_manager_approval") return "accounting_payment_list";
   if (["accounting_manager","accounting_staff"].includes(user.role) && status === "accounting_payment_list") return "paid";
   return status;
 }
@@ -224,15 +294,15 @@ function nextStatusFor(user, status, db) {
 function canSeeExpense(user, expense, db) {
   const u = dbUserFor(user, db);
   if (user.role === "admin" || (u && u.full_access)) return true;
-  if (["accounting_manager", "accounting_staff", "finance"].includes(user.role)) return true;
-  if (user.role === "salesperson" || ["technical_staff","warehouse","front_office","marketing_manager"].includes(user.role)) return expense.user_id === user.id;
+  if (["accounting_manager", "accounting_staff", "finance_manager", "finance"].includes(user.role)) return true;
+  if (["sales_responsible","salesperson","technical_staff","warehouse","front_office","marketing_manager"].includes(user.role)) return expense.user_id === user.id;
   if (user.role === "sales_manager") {
     const owner = db.users.find(x => x.id === expense.user_id);
-    return owner && owner.manager_id === user.id;
+    return expense.user_id === user.id || (owner && owner.manager_id === user.id);
   }
   if (user.role === "technical_manager") {
     const owner = db.users.find(x => x.id === expense.user_id);
-    return (owner && owner.manager_id === user.id) || ["technical_manager_review", "finance_approval", "accounting_payment_list", "paid"].includes(expense.status);
+    return expense.user_id === user.id || (owner && owner.manager_id === user.id) || ["technical_manager_review", "finance_manager_approval", "finance_approval", "accounting_payment_list", "paid"].includes(expense.status);
   }
   return false;
 }
@@ -245,9 +315,9 @@ function canActOnExpense(user, expense, db) {
     const owner = db.users.find(x => x.id === expense.user_id);
     return owner && owner.manager_id === user.id;
   }
-  if (user.role === "technical_manager" && expense.status === "technical_manager_review") return true;
-  if (user.role === "finance" && expense.status === "finance_approval") return true;
-  if (["accounting_manager","accounting_staff"].includes(user.role) && expense.status === "accounting_payment_list") return true;
+  if ((user.role === "sales_director" || (u && u.full_access)) && expense.status === "sales_director_approval") return true;
+  if (user.role === "accounting_manager" && ["accounting_manager_approval","accounting_payment_list"].includes(expense.status)) return true;
+  if (user.role === "finance_manager" && expense.status === "finance_manager_approval") return true;
   return false;
 }
 
@@ -259,7 +329,7 @@ function actionOptions(user, expense) {
 }
 
 function canCreateExpense(role) {
-  return ["salesperson","technical_staff","warehouse","front_office","marketing_manager","admin"].includes(role);
+  return ["sales_responsible","salesperson","sales_manager","technical_staff","warehouse","front_office","marketing_manager","technical_manager","admin"].includes(role);
 }
 
 function layout(title, user, content) {
@@ -278,8 +348,8 @@ ${user ? `<nav>
   <a href="/">Panel</a>
   ${canCreateExpense(user.role) ? `<a href="/expenses/new">Masraf Ekle</a>` : ""}
   <a href="/expenses">Masraflar</a>
-  ${["sales_manager","technical_manager","finance","accounting_manager","accounting_staff","admin"].includes(user.role) ? `<a href="/work">İş Listem</a>` : ""}
-  ${["accounting_manager","accounting_staff","finance","admin"].includes(user.role) ? `<a href="/reports">Rapor / Excel</a>` : ""}
+  ${["sales_manager","sales_director","technical_manager","finance_manager","finance","accounting_manager","accounting_staff","admin"].includes(user.role) ? `<a href="/work">İş Listem</a>` : ""}
+  ${["accounting_manager","accounting_staff","finance_manager","finance","admin"].includes(user.role) ? `<a href="/reports">Rapor / Excel</a>` : ""}
   ${["accounting_manager","accounting_staff","admin"].includes(user.role) ? `<a href="/payments">Muhasebe Ödeme Listesi</a>` : ""}
   ${adminLinks}
   <a href="/logout">Çıkış</a>
@@ -357,12 +427,12 @@ app.get("/", requireLogin, (req, res) => {
     <div class="card">
       <h2>Final Akış</h2>
       <ol>
-        <li>Personel masraf girer ve fiş yükler.</li>
-        <li>İlk yetkili müdür kontrol eder.</li>
-        <li>Teknik Müdür Ferhat teknik uygunluğu kontrol eder.</li>
-        <li>Finans Celal onaylar.</li>
-        <li>Onaylanan ödeme listesi muhasebe birimine düşer.</li>
-        <li>Muhasebe ödeme sonrası “Ödendi” yapar.</li>
+        <li>Satış Sorumlusu masraf girer.</li>
+        <li>İlk Satış Yöneticisi onaylar.</li>
+        <li>Satış Müdürü / Şirket Ortağı Ozan onaylar.</li>
+        <li>Muhasebe Müdürü Seren onaylar.</li>
+        <li>Finans Müdürü / Şirket Ortağı Celal onaylar.</li>
+        <li>Finans onayından sonra kayıt muhasebe ödeme listesine düşer; muhasebe ödeme sonrası “Ödendi” yapar.</li>
       </ol>
     </div>
   `));
@@ -380,11 +450,11 @@ app.get("/expenses/new", requireLogin, (req, res) => {
           <option>Otopark</option><option>Yemek</option><option>Yakıt / Yol</option><option>Konaklama</option>
           <option>Kargo</option><option>Genel Harcama</option><option>Demirbaş</option><option>Diğer</option>
         </select>
-        <label>Tutar</label><input name="amount" type="number" step="0.01" required>
+        <label>Tutar</label><input name="amount" id="amount" type="number" step="0.01" required>
         <label>Para Birimi</label><select name="currency"><option>TRY</option><option>USD</option><option>EUR</option></select>
-        <label>Masraf Tarihi</label><input name="expense_date" type="date" required>
+        <label>Masraf Tarihi</label><input name="expense_date" id="expense_date" type="date" required>
         <label>Açıklama</label><textarea name="description"></textarea>
-        <label>Fiş / Fatura Görseli</label><input name="receipt" type="file" accept="image/*,.pdf">
+        <label>Fiş / Fatura Görseli</label><p class="muted">Fotoğraf seçince tutar ve tarih otomatik okunmaya çalışır. Göndermeden önce kontrol et.</p><input name="receipt" id="receipt" type="file" accept="image/*,.pdf">
         <button>Onaya Gönder</button>
       </form>
     </div>
@@ -405,7 +475,7 @@ app.post("/expenses", requireLogin, upload.single("receipt"), (req, res) => {
     expense_date,
     description: description || "",
     receipt_path: req.file ? "/uploads/" + req.file.filename : "",
-    status: "sales_manager_approval",
+    status: user.role === "sales_responsible" || user.role === "salesperson" ? "sales_manager_approval" : "sales_director_approval",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
   });
@@ -504,14 +574,17 @@ Muhasebe ödeme listesine alabilir.`;
   res.redirect("/expenses/" + exp.id);
 });
 
-app.get("/work", requireLogin, requireRole(["sales_manager","technical_manager","finance","accounting_manager","accounting_staff","admin"]), (req, res) => {
+app.get("/work", requireLogin, requireRole(["sales_manager","sales_director","technical_manager","finance_manager","finance","accounting_manager","accounting_staff","admin"]), (req, res) => {
   const db = loadDb();
   const user = req.session.user;
+  const u = db.users.find(x => x.id === user.id);
   let rows = db.expenses.filter(e => !["paid","rejected"].includes(e.status));
   if (user.role === "sales_manager") rows = rows.filter(e => e.status === "sales_manager_approval" && e.manager_id === user.id);
+  if (user.role === "sales_director") rows = rows.filter(e => e.status === "sales_director_approval");
+  if (u && u.full_access && user.role !== "admin") rows = rows.filter(e => ["sales_director_approval","finance_manager_approval"].includes(e.status));
   if (user.role === "technical_manager") rows = rows.filter(e => e.status === "technical_manager_review");
-  if (user.role === "finance") rows = rows.filter(e => e.status === "finance_approval");
-  if (["accounting_manager","accounting_staff"].includes(user.role)) rows = rows.filter(e => e.status === "accounting_payment_list");
+  if (["finance_manager","finance"].includes(user.role)) rows = rows.filter(e => e.status === "finance_manager_approval" || e.status === "finance_approval");
+  if (["accounting_manager","accounting_staff"].includes(user.role)) rows = rows.filter(e => ["accounting_manager_approval","accounting_payment_list"].includes(e.status));
   rows = rows.map(e => ({...e, user_name: (db.users.find(u => u.id === e.user_id) || {}).name || "-"})).sort((a,b) => b.id - a.id);
   res.send(layout("İş Listem", user, `
     <div class="card wide"><h1>İş Listem</h1>
@@ -538,7 +611,7 @@ app.get("/payments", requireLogin, requireRole(["accounting_manager","accounting
   `));
 });
 
-app.get("/reports", requireLogin, requireRole(["accounting_manager","accounting_staff","finance","admin"]), (req, res) => {
+app.get("/reports", requireLogin, requireRole(["accounting_manager","accounting_staff","finance_manager","finance","admin"]), (req, res) => {
   res.send(layout("Rapor / Excel", req.session.user, `
     <div class="card">
       <h1>Rapor / Excel</h1>
@@ -549,7 +622,7 @@ app.get("/reports", requireLogin, requireRole(["accounting_manager","accounting_
   `));
 });
 
-app.get("/export/expenses.csv", requireLogin, requireRole(["accounting_manager","accounting_staff","finance","admin"]), (req, res) => {
+app.get("/export/expenses.csv", requireLogin, requireRole(["accounting_manager","accounting_staff","finance_manager","finance","admin"]), (req, res) => {
   const db = loadDb();
   const rows = [["ID","Personel","Masraf Türü","Tutar","Para Birimi","Tarih","Durum","Açıklama","IBAN"]];
   db.expenses.forEach(e => {
@@ -561,7 +634,7 @@ app.get("/export/expenses.csv", requireLogin, requireRole(["accounting_manager",
   res.send(makeCsv(rows));
 });
 
-app.get("/export/payments.csv", requireLogin, requireRole(["accounting_manager","accounting_staff","finance","admin"]), (req, res) => {
+app.get("/export/payments.csv", requireLogin, requireRole(["accounting_manager","accounting_staff","finance_manager","finance","admin"]), (req, res) => {
   const db = loadDb();
   const rows = [["ID","Personel","IBAN","Tutar","Para Birimi","Masraf Türü","Durum","Tarih"]];
   db.expenses.filter(e => ["accounting_payment_list","paid"].includes(e.status)).forEach(e => {
@@ -573,7 +646,7 @@ app.get("/export/payments.csv", requireLogin, requireRole(["accounting_manager",
   res.send(makeCsv(rows));
 });
 
-app.get("/export/users.csv", requireLogin, requireRole(["accounting_manager","accounting_staff","finance","admin"]), (req, res) => {
+app.get("/export/users.csv", requireLogin, requireRole(["accounting_manager","accounting_staff","finance_manager","finance","admin"]), (req, res) => {
   const db = loadDb();
   const rows = [["ID","Ad Soyad","Email","Departman","Şirket Rolü","Yetkilisi","Dahili","Durum"]];
   db.users.forEach(u => {
@@ -587,7 +660,8 @@ app.get("/export/users.csv", requireLogin, requireRole(["accounting_manager","ac
 
 app.get("/users", requireLogin, requireRole(["admin"]), (req, res) => {
   const db = loadDb();
-  const managers = db.users.filter(u => ["sales_manager","technical_manager","admin"].includes(u.role) && u.active);
+  normalizeSeedData(db);
+  const managers = db.users.filter(u => u.active && u.id !== req.session.user.id && (["sales_manager","sales_director","technical_manager","accounting_manager","finance_manager","finance","admin"].includes(u.role) || u.full_access));
   const managerOptions = managers.map(m => `<option value="${m.id}">${m.name}</option>`).join("");
   res.send(layout("Personel", req.session.user, `
     <div class="card">
@@ -598,12 +672,13 @@ app.get("/users", requireLogin, requireRole(["admin"]), (req, res) => {
         <label>Şifre</label><input name="password" type="password" required>
         <label>Rol</label>
         <select name="role">
-          <option value="salesperson">Satışçı</option><option value="sales_manager">Satış Müdürü</option>
+          <option value="sales_responsible">Satış Sorumlusu</option><option value="sales_manager">Satış Yöneticisi</option><option value="sales_director">Satış Müdürü</option>
           <option value="technical_manager">Teknik Müdür</option><option value="technical_staff">Teknik Destek</option>
           <option value="accounting_staff">Muhasebe Sorumlusu</option><option value="accounting_manager">Muhasebe Müdürü</option>
           <option value="front_office">Ön Büro Sorumlusu</option><option value="marketing_manager">Pazarlama Yöneticisi</option>
-          <option value="warehouse">Depo Sorumlusu</option><option value="finance">Finans</option><option value="admin">Gizli Admin</option>
+          <option value="warehouse">Depo Sorumlusu</option><option value="finance_manager">Finans Müdürü</option><option value="admin">Sistem Yöneticisi</option>
         </select>
+        <label>Şirket Rolü (Ekranda Görünen İsim)</label><input name="company_role" placeholder="Örn: Satış Yöneticisi / Şirket Ortağı">
         <label>Yetkilisi / Bağlı Olduğu Müdür</label><select name="manager_id"><option value="">Yok</option>${managerOptions}</select>
         <label>Unvan</label><input name="title">
         <label>Departman</label><input name="department">
@@ -617,15 +692,15 @@ app.get("/users", requireLogin, requireRole(["admin"]), (req, res) => {
       <h1>Personel Listesi</h1>
       <p><a class="buttonlink" href="/export/users.csv">Personel CSV / Excel İndir</a></p>
       <table><thead><tr><th>ID</th><th>Ad</th><th>E-posta</th><th>Bölümü</th><th>Şirket Rolü</th><th>Yetkilisi</th><th>Dahili</th><th>Durum</th><th></th><th></th></tr></thead><tbody>
-        ${db.users.map(u => {
+        ${db.users.filter(u => String(u.email || '').toLowerCase() !== 'destek@akuvoxinterkom.com').map(u => {
           const m = db.users.find(x => x.id === u.manager_id);
-          const deleteDisabled = u.role === "admin" || u.id === req.session.user.id;
+          const deleteDisabled = u.role === "admin" || u.full_access || u.id === req.session.user.id || u.name === "Celal Eşli" || u.name === "Ozan Güldümen";
           return `<tr>
             <td>${u.id}</td><td>${u.name}</td><td>${u.email}</td><td>${u.department || "-"}</td>
-            <td>${roleLabel(u.role)}${u.full_access ? " / Tam Yetki" : ""}</td><td>${m ? m.name : "-"}</td>
+            <td>${displayCompanyRole(u)}</td><td>${m ? m.name : "-"}</td>
             <td>${u.extension || "-"}</td><td>${u.active ? "Aktif" : "Pasif"}</td>
             <td><a href="/users/${u.id}/edit">Düzenle</a></td>
-            <td>${deleteDisabled ? "-" : `<form method="post" action="/users/${u.id}/delete" onsubmit="return confirm('Bu personel pasife alınacak. Emin misiniz?');"><button class="danger" type="submit">Sil</button></form>`}</td>
+            <td>${deleteDisabled ? "-" : `<a class="buttonlink danger" href="/users/${u.id}/deactivate" onclick="return confirm('Bu personel pasife alınacak. Emin misiniz?');">Pasife Al</a>`}</td>
           </tr>`;
         }).join("")}
       </tbody></table>
@@ -635,11 +710,12 @@ app.get("/users", requireLogin, requireRole(["admin"]), (req, res) => {
 
 app.post("/users", requireLogin, requireRole(["admin"]), (req, res) => {
   const db = loadDb();
-  const { name, email, password, role, manager_id, iban, title, department, extension, full_access } = req.body;
+  const { name, email, password, role, manager_id, iban, title, department, extension, full_access, company_role } = req.body;
   if (db.users.find(u => u.email === email)) return res.send("Bu e-posta zaten var.");
   db.users.push({
     id: db.counters.users++, name, email, password_hash: bcrypt.hashSync(password, 10),
     role, manager_id: manager_id ? Number(manager_id) : null, iban: iban || "",
+    company_role: company_role || title || roleLabel(role),
     title: title || "", department: department || "", extension: extension || "",
     active: true, full_access: full_access === "true", created_at: new Date().toISOString()
   });
@@ -651,9 +727,9 @@ app.get("/users/:id/edit", requireLogin, requireRole(["admin"]), (req, res) => {
   const db = loadDb();
   const u = db.users.find(x => x.id === Number(req.params.id));
   if (!u) return res.status(404).send("Kullanıcı bulunamadı");
-  const managers = db.users.filter(x => ["sales_manager","technical_manager","admin"].includes(x.role) && x.id !== u.id && x.active);
+  const managers = db.users.filter(x => x.active && x.id !== u.id && (["sales_manager","sales_director","technical_manager","accounting_manager","finance_manager","finance","admin"].includes(x.role) || x.full_access));
   const opt = managers.map(m => `<option value="${m.id}" ${u.manager_id === m.id ? "selected" : ""}>${m.name}</option>`).join("");
-  const roles = ["salesperson","sales_manager","technical_manager","technical_staff","accounting_staff","accounting_manager","front_office","marketing_manager","warehouse","finance","admin"].map(r => `<option value="${r}" ${u.role === r ? "selected" : ""}>${roleLabel(r)}</option>`).join("");
+  const roles = ["sales_responsible","salesperson","sales_manager","sales_director","technical_manager","technical_staff","accounting_staff","accounting_manager","front_office","marketing_manager","warehouse","finance_manager","finance","admin"].map(r => `<option value="${r}" ${u.role === r ? "selected" : ""}>${roleLabel(r)}</option>`).join("");
   res.send(layout("Personel Düzenle", req.session.user, `
     <div class="card">
       <h1>Personel Düzenle</h1>
@@ -662,6 +738,7 @@ app.get("/users/:id/edit", requireLogin, requireRole(["admin"]), (req, res) => {
         <label>E-posta</label><input name="email" type="email" value="${u.email}" required>
         <label>Yeni Şifre</label><input name="password" type="password" placeholder="Boş bırakırsan değişmez">
         <label>Rol</label><select name="role">${roles}</select>
+        <label>Şirket Rolü (Ekranda Görünen İsim)</label><input name="company_role" placeholder="Örn: Satış Yöneticisi / Şirket Ortağı">
         <label>Yetkilisi / Bağlı Olduğu Müdür</label><select name="manager_id"><option value="">Yok</option>${opt}</select>
         <label>Unvan</label><input name="title" value="${u.title || ""}">
         <label>Departman</label><input name="department" value="${u.department || ""}">
@@ -679,14 +756,25 @@ app.post("/users/:id/edit", requireLogin, requireRole(["admin"]), (req, res) => 
   const db = loadDb();
   const u = db.users.find(x => x.id === Number(req.params.id));
   if (!u) return res.status(404).send("Kullanıcı bulunamadı");
-  const { name, email, password, role, manager_id, iban, title, department, extension, full_access, active } = req.body;
+  const { name, email, password, role, manager_id, iban, title, department, extension, full_access, active, company_role } = req.body;
   const emailExists = db.users.find(x => x.email === email && x.id !== u.id);
   if (emailExists) return res.send("Bu e-posta başka kullanıcıda var.");
   u.name = name; u.email = email;
   if (password) u.password_hash = bcrypt.hashSync(password, 10);
-  u.role = role; u.manager_id = manager_id ? Number(manager_id) : null;
+  u.role = role; u.company_role = company_role || title || roleLabel(role); u.manager_id = manager_id ? Number(manager_id) : null;
   u.iban = iban || ""; u.title = title || ""; u.department = department || ""; u.extension = extension || "";
   u.full_access = full_access === "true"; u.active = active === "true";
+  saveDb(db);
+  res.redirect("/users");
+});
+
+app.get("/users/:id/deactivate", requireLogin, requireRole(["admin"]), (req, res) => {
+  const db = loadDb();
+  const id = Number(req.params.id);
+  const u = db.users.find(x => x.id === id);
+  if (!u) return res.status(404).send("Kullanıcı bulunamadı");
+  if (u.role === "admin" || u.full_access || u.id === req.session.user.id || u.name === "Celal Eşli" || u.name === "Ozan Güldümen") return res.status(403).send("Bu kullanıcı pasife alınamaz.");
+  u.active = false;
   saveDb(db);
   res.redirect("/users");
 });
@@ -696,7 +784,7 @@ app.post("/users/:id/delete", requireLogin, requireRole(["admin"]), (req, res) =
   const id = Number(req.params.id);
   const u = db.users.find(x => x.id === id);
   if (!u) return res.status(404).send("Kullanıcı bulunamadı");
-  if (u.role === "admin" || u.id === req.session.user.id) return res.status(403).send("Admin veya kendi kullanıcınız silinemez.");
+  if (u.role === "admin" || u.full_access || u.id === req.session.user.id || u.name === "Celal Eşli" || u.name === "Ozan Güldümen") return res.status(403).send("Bu kullanıcı pasife alınamaz.");
   // Güvenli silme: geçmiş kayıtlar bozulmasın diye fiziki silmiyoruz, pasife alıyoruz.
   u.active = false;
   saveDb(db);
@@ -707,14 +795,14 @@ app.get("/settings", requireLogin, requireRole(["admin"]), (req, res) => {
   res.send(layout("Ayarlar", req.session.user, `
     <div class="card"><h1>Akış Ayarları</h1>
       <ol>
-        <li>Personel masraf girer</li>
-        <li>Yetkili müdür kontrol eder</li>
-        <li>Teknik Müdür kontrol eder</li>
-        <li>Finans onaylar</li>
-        <li>Muhasebe ödeme listesine düşer</li>
-        <li>Muhasebe ödeme sonrası “Ödendi” yapar</li>
+        <li>Satış Sorumlusu masraf girer</li>
+        <li>Satış Yöneticisi onaylar</li>
+        <li>Satış Müdürü / Ozan onaylar</li>
+        <li>Muhasebe Müdürü onaylar</li>
+        <li>Finans Müdürü / Celal onaylar</li>
+        <li>Muhasebe ödeme listesine düşer ve ödeme sonrası “Ödendi” yapılır</li>
       </ol>
-      <p class="muted">Sil butonu güvenli silme yapar: kullanıcıyı pasife alır, geçmiş masraf kayıtlarını bozmaz.</p>
+      <p class="muted">Şirket rolü isimleri personel düzenleme ekranından değiştirilebilir. Silme işlemi güvenli şekilde “Pasife Al” mantığıyla çalışır.</p>
     </div>
   `));
 });
