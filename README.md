@@ -1,35 +1,33 @@
-# Modüler Masraf v3
+# Modüler Masraf v4 - Ekip Listesi + Sil Butonu
 
-Final iş akışı:
+Bu sürümde Excel’deki ekip listesi uygulamaya gömüldü.
 
-Satışçı -> Satış Müdürü (Ozan) -> Teknik Müdür (Ferhat) -> Finans (Celal) -> Muhasebe Ödeme Listesi -> Ödendi
+## Hazır kullanıcılar
 
-## Önemli
+Varsayılan şifre: 123456
 
-- Bitrix24 yoktur.
-- Ozan ve Celal tüm sistemi görür.
-- Finans ödeme listesi hazırlamaz; yalnızca onay verir.
-- Finans onayından sonra kayıt muhasebe ödeme listesine düşer.
-- Muhasebe ödeme listesi CSV/Excel alınabilir.
+- Ozan Güldümen: ozan@modulerotomasyon.com
+- Celal Eşli: celal@modulerotomasyon.com
+- Ferhat Halis Polat: halis.polat@modulerotomasyon.com
+- Seren Sarıkaya: seren.sarikaya@modulerotomasyon.com
+- Duygu Genç: duygu.genc@modulerotomasyon.com
+- Sıla Sağlam: sila.saglam@modulerotomasyon.com
+- Satış ve teknik ekip kullanıcıları
 
-## Varsayılan Şifre
+## Yeni özellikler
 
-Tüm hazır kullanıcılar için: 123456
-
-## Celal maili
-
-Varsayılan olarak:
-celal.esli@modulerotomasyon.com
-
-Railway Variable ile değiştirebilirsin:
-CELAL_EMAIL=...
-CELAL_PASSWORD=...
+- Personel listesi Excel’deki kolonlara yaklaştırıldı
+- Departman, şirket rolü, yetkilisi, dahili gösterilir
+- Düzenle butonu var
+- Sil butonu eklendi
+- Sil fiziksel silme yapmaz; kullanıcıyı pasife alır
+- Personel CSV/Excel export eklendi
 
 ## Railway Variables
 
 SESSION_SECRET=uzun-gizli-bir-key
 ADMIN_EMAIL=ozan@modulerotomasyon.com
-ADMIN_PASSWORD=guclu-sifre
+ADMIN_PASSWORD=123456
 DEFAULT_USER_PASSWORD=123456
-CELAL_EMAIL=celal.esli@modulerotomasyon.com
+CELAL_EMAIL=celal@modulerotomasyon.com
 ACCOUNTING_PAYMENT_MAIL=seren.sarikaya@modulerotomasyon.com,duygu.genc@modulerotomasyon.com,sila.saglam@modulerotomasyon.com

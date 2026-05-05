@@ -1,7 +1,7 @@
 {
-  "name": "moduler-masraf-v3",
-  "version": "3.0.0",
-  "description": "Modüler Masraf bağımsız web uygulaması v3",
+  "name": "moduler-masraf-v4-ekip-listesi",
+  "version": "4.0.0",
+  "description": "Modüler Masraf bağımsız web uygulaması v4 - ekip listesi ve sil butonu",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
