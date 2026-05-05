@@ -1,7 +1,7 @@
 {
-  "name": "moduler-masraf-standalone",
-  "version": "1.0.0",
-  "description": "Modüler Masraf bağımsız web uygulaması",
+  "name": "moduler-masraf-v3",
+  "version": "3.0.0",
+  "description": "Modüler Masraf bağımsız web uygulaması v3",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -11,7 +11,8 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-session": "^1.18.1",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.16"
   },
   "engines": {
     "node": ">=20"

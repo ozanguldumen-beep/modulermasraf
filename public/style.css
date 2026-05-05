@@ -21,3 +21,5 @@ th{background:#eef4ff;color:#123c69}
 .big{font-size:40px;font-weight:800;margin:0}
 .muted{color:#667085;font-size:13px}
 a{color:#123c69}
+.mail{border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin:12px 0;background:#fafafa}
+pre{white-space:pre-wrap}
