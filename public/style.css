@@ -41,3 +41,14 @@ button.secondary{
   border:1px solid #b8cff8;
   margin-top:10px;
 }
+
+.ocr-debug{
+  margin-top:8px;
+  padding:10px 12px;
+  border-radius:10px;
+  background:#f8fafc;
+  color:#475467;
+  font-size:12px;
+  white-space:pre-wrap;
+  border:1px solid #e5e7eb;
+}

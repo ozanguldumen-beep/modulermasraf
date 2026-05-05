@@ -606,9 +606,11 @@ app.get("/expenses/new", requireLogin, (req, res) => {
         <label>Para Birimi</label><select name="currency"><option>TRY</option><option>USD</option><option>EUR</option></select>
         <label>Masraf Tarihi</label><input name="expense_date" id="expense_date" type="date" required>
         <label>Açıklama</label><textarea name="description"></textarea>
-        <label>Fiş / Fatura Görseli</label><p class="muted">Fotoğraf seçince profesyonel OCR ile tutar ve tarih otomatik okunmaya çalışır. Göndermeden önce kontrol et.</p><p class="muted">Fotoğraf seçince profesyonel OCR ile tutar ve tarih otomatik okunmaya çalışır. Göndermeden önce kontrol et.</p><input name="receipt" id="receipt" type="file" accept="image/*,.pdf">
-        <button type="button" id="ocrBtn" class="secondary" onclick="return runOcrNow(event);">Fişi Oku / Tutarı Otomatik Doldur</button>
-        <div id="ocrStatus" class="ocr-status">Fiş seçip “Fişi Oku” butonuna bas.</div>
+        <label>Fiş / Fatura Görseli</label><p class="muted">Fotoğraf seçince profesyonel OCR ile tutar ve tarih otomatik okunmaya çalışır. Göndermeden önce kontrol et.</p>
+        <input name="receipt" id="receipt" type="file" accept="image/*,.pdf">
+        <button type="button" id="ocrBtn" class="secondary" onclick="window.runOcrNow(event)">Fişi Oku / Tutarı Otomatik Doldur</button>
+        <div id="ocrStatus" class="ocr-status">OCR hazır. Fiş seçip “Fişi Oku” butonuna bas.</div>
+        <div id="ocrDebug" class="ocr-debug"></div>
         <button>Onaya Gönder</button>
       </form>
     </div>

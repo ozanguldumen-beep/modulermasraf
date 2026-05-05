@@ -87,3 +87,12 @@ Azure Image Analysis API `features=read` ile OCR sonucu döndürür.
 - Buton type=button olarak sabitlendi, formu submit etmez.
 - JavaScript yüklenince console'da `Modüler Masraf OCR v11 yüklendi` yazar.
 - API key kontrolü `/api/ocr-status` üzerinden yapılır.
+
+
+## v12 Temiz OCR Paketi
+
+- `window.runOcrNow` dosyanın en başında global tanımlıdır.
+- Buton `onclick="window.runOcrNow(event)"` ile çalışır.
+- JS cache kırmak için `/public/ocr.js?v=12` kullanılır.
+- OCR debug alanı eklenmiştir.
+- Console'da `Modüler Masraf OCR v12 yüklendi` yazmalıdır.
