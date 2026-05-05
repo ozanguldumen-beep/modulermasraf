@@ -24,3 +24,13 @@ th{background:#eef4ff;color:#123c69}
 a{color:#123c69}
 .mail{border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin:12px 0;background:#fafafa}
 pre{white-space:pre-wrap}
+
+.ocr-status{
+  margin-top:10px;
+  padding:10px 12px;
+  border-radius:10px;
+  background:#eef4ff;
+  color:#123c69;
+  font-weight:700;
+  font-size:14px;
+}

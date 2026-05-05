@@ -505,6 +505,17 @@ async function runProfessionalOCR(fileBuffer, mimeType) {
   return await runGoogleVisionOCR(fileBuffer);
 }
 
+
+app.get("/api/ocr-status", requireLogin, (req, res) => {
+  res.json({
+    ok: true,
+    provider: (process.env.OCR_PROVIDER || "google").toLowerCase(),
+    googleKey: !!process.env.GOOGLE_VISION_API_KEY,
+    azureEndpoint: !!process.env.AZURE_VISION_ENDPOINT,
+    azureKey: !!process.env.AZURE_VISION_KEY
+  });
+});
+
 app.post("/api/ocr", requireLogin, ocrUpload.single("receipt"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ ok: false, error: "Fiş dosyası gelmedi." });
@@ -596,6 +607,7 @@ app.get("/expenses/new", requireLogin, (req, res) => {
         <label>Masraf Tarihi</label><input name="expense_date" id="expense_date" type="date" required>
         <label>Açıklama</label><textarea name="description"></textarea>
         <label>Fiş / Fatura Görseli</label><p class="muted">Fotoğraf seçince profesyonel OCR ile tutar ve tarih otomatik okunmaya çalışır. Göndermeden önce kontrol et.</p><p class="muted">Fotoğraf seçince profesyonel OCR ile tutar ve tarih otomatik okunmaya çalışır. Göndermeden önce kontrol et.</p><input name="receipt" id="receipt" type="file" accept="image/*,.pdf">
+        <div id="ocrStatus" class="ocr-status">OCR hazır. Fotoğraf seçince otomatik başlayacak.</div>
         <button>Onaya Gönder</button>
       </form>
     </div>

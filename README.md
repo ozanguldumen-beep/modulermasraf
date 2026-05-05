@@ -63,3 +63,11 @@ Azure Image Analysis API `features=read` ile OCR sonucu döndürür.
 
 - API key eklenmezse OCR hata verir ama masrafı elle girmeye devam edebilirsin.
 - Tutar ve tarih otomatik doldurulur; kullanıcı göndermeden önce kontrol etmelidir.
+
+
+## v9 OCR Fix
+
+- OCR JavaScript bağlantısı sağlamlaştırıldı.
+- Masraf ekleme ekranında OCR durum kutusu görünür.
+- Fotoğraf seçilince direkt `/api/ocr` çağrılır.
+- `/api/ocr-status` ile Railway OCR variable kontrolü eklenmiştir.
