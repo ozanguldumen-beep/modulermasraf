@@ -1,29 +1,20 @@
 {
-  "name": "moduler-masraf",
-  "version": "1.0.0",
-  "description": "Modüler Masraf Sistemi - Kurumsal harcama yönetim MVP",
+  "name": "moduler-masraf-v5-rol-akis",
+  "version": "5.0.0",
+  "description": "Modüler Masraf v5 - değiştirilebilir şirket rolleri ve yeni onay akışı",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
-    "init-db": "node src/initDb.js"
-  },
-  "engines": {
-    "node": ">=20"
+    "start": "node server.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^11.8.1",
-    "connect-sqlite3": "^0.9.16",
     "dotenv": "^16.4.7",
-    "ejs": "^3.1.10",
     "express": "^4.21.2",
     "express-session": "^1.18.1",
     "multer": "^1.4.5-lts.1",
-    "node-cron": "^3.0.3",
-    "uuid": "^11.0.5"
+    "nodemailer": "^6.9.16"
   },
-  "devDependencies": {
-    "nodemon": "^3.1.9"
+  "engines": {
+    "node": ">=20"
   }
 }

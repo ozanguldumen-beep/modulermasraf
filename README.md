@@ -1,47 +1,39 @@
-# Modüler Masraf Sistemi
+# Modüler Masraf v13 OCR Fix
 
-Kurumsal harcama yönetimi MVP.
+Bu paket, önceki başarılı v12 dosyaları baz alınarak hazırlanmıştır.
 
-## Özellikler
+## Değişiklikler
 
-- Personel masraf girişi
-- Fiş/fatura upload
-- Private storage: `/private_uploads/receipts`
-- Google Vision OCR endpoint altyapısı
-- OpenAI ile JSON parse altyapısı
-- Rol bazlı temel yetki
-- Departman yöneticisi → Muhasebe → Finans onay akışı
-- Audit log
-- 2 yıl retention cron altyapısı
-- Railway uyumlu
+- Admin panel yapısı sade tutuldu, eski akış korundu.
+- OCR butonu korunmuştur: `Fişi Oku / Tutarı Otomatik Doldur`.
+- `/public/ocr.js?v=13` cache kırma ile çağrılır.
+- Google Vision API key yoksa sistem bunu ekranda açıkça bildirir.
+- Fişler public uploads altında tutulmaz.
+- Fişler `private_uploads/receipts/YYYY/MM` altında tutulur.
+- Fiş görüntüleme sadece yetki kontrolünden sonra `/receipt/:id/view` ile yapılır.
+- OCR sonucu şu alanları doldurmaya çalışır:
+  - Firma Ünvanı
+  - Belge Numarası
+  - Vergi Matrahı
+  - KDV Tutarı
+  - Toplam Tutar
+  - Masraf Tarihi
+- OpenAI API key verilirse OCR metni AI ile parse edilir.
+- OpenAI API key yoksa regex fallback ile en az tutar/tarih okunmaya çalışır.
 
-## Kurulum
+## Railway Variables
 
-```bash
-npm install
-cp .env.example .env
-npm run init-db
-npm start
+```env
+SESSION_SECRET=...
+DEFAULT_USER_PASSWORD=123456
+ADMIN_EMAIL=ozan@modulerotomasyon.com
+ADMIN_PASSWORD=123456
+OCR_PROVIDER=google
+GOOGLE_VISION_API_KEY=...
+OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-5.3
 ```
 
-Tarayıcı:
+## Not
 
-```text
-http://localhost:3000
-```
-
-İlk admin kullanıcı `.env` içindeki `ADMIN_EMAIL` ve `ADMIN_PASSWORD` ile oluşturulur.
-
-## Railway
-
-Railway Variables içine `.env.example` içindeki değişkenleri ekleyin.
-
-## Güvenlik
-
-Fişler public klasörde tutulmaz. Dosya görüntüleme sadece şu rota üzerinden yapılır:
-
-```text
-/receipt/:id/view
-```
-
-Backend kullanıcının yetkisini kontrol eder.
+Google Vision OCR gerçek okuma yapabilmek için `GOOGLE_VISION_API_KEY` ister. Bu key olmadan gerçek Google OCR çalışmaz; sistem elle girişe izin verir.
