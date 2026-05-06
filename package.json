@@ -1,6 +1,6 @@
 {
-  "name": "moduler-masraf-v18-6-heic-server-ui-fixed",
-  "version": "18.6.0",
+  "name": "moduler-masraf-v18-7-heic-server-convert-fixed",
+  "version": "18.7.0",
   "description": "Modüler Masraf v5 - değiştirilebilir şirket rolleri ve yeni onay akışı",
   "main": "server.js",
   "scripts": {

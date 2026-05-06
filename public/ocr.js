@@ -1,6 +1,6 @@
 
 (function(){
-  console.log("Modüler Masraf OCR v18.4 google restore yüklendi");
+  console.log("Modüler Masraf OCR v18.7 HEIC server convert fixed yüklendi");
 
   function byId(id){ return document.getElementById(id); }
 
@@ -60,12 +60,57 @@
 
     setFieldValue(['#company_name','input[name="company_name"]'], result.company_name);
     setFieldValue(['#document_date','input[name="document_date"]'], documentDate);
-    setFieldValue(['#document_number','input[name="document_number"]'], result.document_number);
-    setFieldValue(['#receipt_no','input[name="receipt_no"]'], result.receipt_no);
+    setFieldValue(['#document_number','input[name="document_number"]'], result.document_number || result.receipt_no);
     setFieldValue(['#subtotal','input[name="subtotal"]'], result.subtotal);
     setFieldValue(['#vat_amount','input[name="vat_amount"]'], result.vat_amount);
     setFieldValue(['#amount','input[name="amount"]'], totalAmount);
     setFieldValue(['#expense_date','input[name="expense_date"]'], normalizeDateForInput(result.date || result.document_date || result.expense_date));
+  }
+
+
+  async function fileToJpegBlob(file) {
+    // iPhone HEIC/HEIF veya yüksek çözünürlüklü fotoğrafları Google Vision'a gitmeden JPG'ye çevirir.
+    // Safari/Chrome dosyayı decode edebiliyorsa canvas ile güvenli JPEG üretir.
+    const objectUrl = URL.createObjectURL(file);
+
+    try {
+      const img = new Image();
+      img.decoding = "async";
+
+      const loaded = new Promise((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("Tarayıcı bu görsel formatını JPG'ye çeviremedi. iPhone Kamera ayarını 'En Uyumlu' yapıp JPG çekin veya görseli JPG/PNG olarak tekrar yükleyin."));
+      });
+
+      img.src = objectUrl;
+      await loaded;
+
+      const maxSide = 1800;
+      let width = img.naturalWidth || img.width;
+      let height = img.naturalHeight || img.height;
+
+      if (!width || !height) {
+        throw new Error("Görsel boyutu okunamadı.");
+      }
+
+      const scale = Math.min(1, maxSide / Math.max(width, height));
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.88));
+      if (!blob) throw new Error("JPG dönüşümü başarısız oldu.");
+
+      return blob;
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
   }
 
   async function runOcrNow(event) {
@@ -94,7 +139,21 @@
       setOcrDebug("Dosya: " + file.name + " / " + Math.round(file.size / 1024) + " KB");
 
       const formData = new FormData();
-      formData.append("receipt", file);
+
+      let uploadFile = file;
+      let uploadName = file.name || "receipt.jpg";
+
+      // Google Vision HEIC dosyaya "Bad image data" verebildiği için önce JPG'ye çeviriyoruz.
+      try {
+        const jpegBlob = await fileToJpegBlob(file);
+        uploadFile = jpegBlob;
+        uploadName = uploadName.replace(/\.[^.]+$/, "") + ".jpg";
+        setOcrDebug("Dosya JPG'ye çevrildi: " + uploadName + " / " + Math.round(jpegBlob.size / 1024) + " KB");
+      } catch (convErr) {
+        setOcrDebug("JPG dönüşüm uyarısı: " + convErr.message + "\nOrijinal dosya gönderilecek: " + file.name);
+      }
+
+      formData.append("receipt", uploadFile, uploadName);
 
       const response = await fetch("/api/ocr", {
         method: "POST",

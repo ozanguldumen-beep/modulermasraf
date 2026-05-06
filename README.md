@@ -121,3 +121,35 @@ Azure Image Analysis API `features=read` ile OCR sonucu döndürür.
 - Önce `DOCUMENT_TEXT_DETECTION`, boş dönerse `TEXT_DETECTION` denenir.
 - OCR metni boşsa artık `ok:true` dönmez; kullanıcıya net hata verir.
 - API cevabına `textLength`, `mimeType`, `fileSize` debug alanları eklendi.
+
+
+## v18.5 HEIC / Bad Image Data Fix
+
+- OCR butonu dosyayı Google'a göndermeden önce tarayıcıda JPEG'e çevirmeye çalışır.
+- iPhone HEIC/HEIF kaynaklı `Bad image data` hatasını azaltır.
+- Görsel uzun kenarı 1800px'e düşürülür ve JPEG kalite 0.88 ile gönderilir.
+- Google tarafında `Bad image data` dönerse kullanıcıya daha anlaşılır hata verilir.
+
+Not: Tarayıcı HEIC dosyasını decode edemiyorsa iPhone Kamera > Formatlar > En Uyumlu seçilip JPG çekilmelidir.
+
+
+## v18.6 HEIC Server + UI Fix
+
+- Server tarafında HEIC/HEIF dosyalar `heic-convert` ile JPEG'e çevrilir.
+- Tüm görseller `sharp` ile 1800px içinde optimize JPEG'e dönüştürülür ve Google Vision'a bu şekilde gönderilir.
+- Masraf Türü alanı, Masraf Tarihi satırının yanına taşındı.
+- Masraf türlerine Araç Yıkama, Uçak Bileti, Taksi, Kargo/Kurye, Ofis Gideri, Temsil/Ağırlama eklendi.
+- Fiş No alanı ekrandan kaldırıldı.
+- OCR'da Fiş No bulunursa Belge Numarası alanına yazılır.
+
+
+## v18.7 HEIC Server Convert Kesin Fix
+
+- `sharp` ve `heic-convert` importları kesin olarak eklendi.
+- HEIC/HEIF algılanırsa Google Vision'a gitmeden önce server tarafında JPEG'e çevrilir.
+- Tüm görseller `sharp` ile yeniden JPEG üretilerek Google Vision'a gönderilir.
+- `/api/version` endpoint'i eklendi: version 18.7.0 dönmelidir.
+- Railway loglarında `HEIC/HEIF algılandı` ve `Google Vision için JPEG hazırlandı` mesajları görünmelidir.
+
+Önemli:
+Railway deploy sonrası eski build cache çalışıyorsa Redeploy/Restart yapın.

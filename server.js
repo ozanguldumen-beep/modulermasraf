@@ -7,6 +7,8 @@ const path = require("path");
 const fs = require("fs");
 const bcrypt = require("bcryptjs");
 const nodemailer = require("nodemailer");
+const sharp = require("sharp");
+const heicConvert = require("heic-convert");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -355,7 +357,7 @@ ${user ? `<nav>
   ${adminLinks}
   <a href="/logout">Çıkış</a>
 </nav>` : ""}
-</header><main>${content}</main><script src="/public/ocr.js?v=183"></script></body></html>`;
+</header><main>${content}</main><script src="/public/ocr.js?v=187"></script></body></html>`;
 }
 
 function csvEscape(value) {
@@ -494,6 +496,67 @@ function extractReceiptFieldsFromText(text) {
   return result;
 }
 
+
+async function prepareImageForGoogleVision(fileBuffer, mimetype, originalname) {
+  const name = String(originalname || "").toLowerCase();
+  const type = String(mimetype || "").toLowerCase();
+  const isHeic =
+    type.includes("heic") ||
+    type.includes("heif") ||
+    name.endsWith(".heic") ||
+    name.endsWith(".heif");
+
+  let inputBuffer = fileBuffer;
+
+  if (isHeic) {
+    console.log("HEIC/HEIF algılandı, JPEG'e çevriliyor:", { originalname, mimetype, size: fileBuffer.length });
+
+    try {
+      const converted = await heicConvert({
+        buffer: fileBuffer,
+        format: "JPEG",
+        quality: 0.92
+      });
+
+      inputBuffer = Buffer.from(converted);
+      console.log("HEIC JPEG dönüşümü tamamlandı:", { jpegSize: inputBuffer.length });
+    } catch (err) {
+      console.error("HEIC convert failed:", err);
+      throw new Error("HEIC dosyası server tarafında JPEG'e çevrilemedi. iPhone Ayarlar > Kamera > Formatlar > En Uyumlu seçerek JPG çekin. Teknik hata: " + err.message);
+    }
+  }
+
+  try {
+    const jpegBuffer = await sharp(inputBuffer, { failOn: "none" })
+      .rotate()
+      .resize({
+        width: 1800,
+        height: 1800,
+        fit: "inside",
+        withoutEnlargement: true
+      })
+      .flatten({ background: "#ffffff" })
+      .jpeg({ quality: 90 })
+      .toBuffer();
+
+    if (!jpegBuffer || jpegBuffer.length < 1000) {
+      throw new Error("JPEG çıktısı boş veya çok küçük oluştu.");
+    }
+
+    console.log("Google Vision için JPEG hazırlandı:", {
+      originalName: originalname,
+      originalMime: mimetype,
+      originalSize: fileBuffer.length,
+      jpegSize: jpegBuffer.length
+    });
+
+    return jpegBuffer;
+  } catch (err) {
+    console.error("Sharp image prepare failed:", err);
+    throw new Error("Görsel Google Vision için JPEG formatına hazırlanamadı: " + err.message);
+  }
+}
+
 async function runGoogleVisionOCR(fileBuffer) {
   const apiKey = process.env.GOOGLE_VISION_API_KEY;
   if (!apiKey) throw new Error("GOOGLE_VISION_API_KEY tanımlı değil.");
@@ -518,7 +581,11 @@ async function runGoogleVisionOCR(fileBuffer) {
     const data = await response.json();
 
     if (!response.ok || data.error) {
-      throw new Error(data.error?.message || "Google Vision OCR hatası.");
+      const msg = data.error?.message || "Google Vision OCR hatası.";
+      if (/Bad image data/i.test(msg)) {
+        throw new Error("Bad image data: Google Vision bu görsel formatını okuyamadı. Genelde iPhone HEIC/HEIF veya bozuk image encoding sebep olur. Sistem v18.5'te görseli tarayıcıda JPG'ye çevirmeye çalışır; devam ederse fişi JPG/PNG olarak yükleyin.");
+      }
+      throw new Error(msg);
     }
 
     const r = data.responses?.[0] || {};
@@ -601,6 +668,8 @@ async function runProfessionalOCR(fileBuffer, mimeType) {
 }
 
 
+app.get("/api/version", requireLogin, (req, res) => res.json({ ok: true, version: "18.7.0", heicServerConvert: true }));
+
 app.get("/api/ocr-status", requireLogin, (req, res) => {
   res.json({
     ok: true,
@@ -615,7 +684,8 @@ app.post("/api/ocr", requireLogin, ocrUpload.single("receipt"), async (req, res)
   try {
     if (!req.file) return res.status(400).json({ ok: false, error: "Fiş dosyası gelmedi." });
 
-    const text = await runProfessionalOCR(req.file.buffer, req.file.mimetype);
+    const preparedBuffer = await prepareImageForGoogleVision(req.file.buffer, req.file.mimetype, req.file.originalname);
+    const text = await runProfessionalOCR(preparedBuffer, "image/jpeg");
 
     if (!text || !text.trim()) {
       return res.status(422).json({
@@ -630,6 +700,7 @@ app.post("/api/ocr", requireLogin, ocrUpload.single("receipt"), async (req, res)
     }
 
     const fields = extractReceiptFieldsFromText(text);
+    if (!fields.document_number && fields.receipt_no) fields.document_number = fields.receipt_no;
 
     res.json({
       ok: true,
@@ -717,12 +788,23 @@ app.get("/expenses/new", requireLogin, (req, res) => {
           <div><label>Firma Ünvanı</label><input name="company_name" id="company_name"></div>
           <div><label>Belge Tarihi</label><input name="document_date" id="document_date" type="date"></div>
           <div><label>Belge Numarası</label><input name="document_number" id="document_number"></div>
-          <div><label>Fiş No</label><input name="receipt_no" id="receipt_no"></div>
           <div><label>Vergi Matrahı</label><input name="subtotal" id="subtotal" type="number" step="0.01"></div>
           <div><label>KDV Tutarı</label><input name="vat_amount" id="vat_amount" type="number" step="0.01"></div>
           <div><label>Toplam Tutar</label><input name="amount" id="amount" type="number" step="0.01" required></div>
           <div><label>Para Birimi</label><select name="currency"><option>TRY</option><option>USD</option><option>EUR</option></select></div>
-          <div><label>Masraf Tarihi</label><input name="expense_date" id="expense_date" type="date" required></div>
+          <div><div class="grid"><div><label>Masraf Tarihi</label><input name="expense_date" id="expense_date" type="date" required></div><div><label>Masraf Türü</label><select name="expense_type">
+<option>Otopark</option>
+<option>Araç Yıkama</option>
+<option>Uçak Bileti</option>
+<option>Taksi</option>
+<option>Yemek</option>
+<option>Yakıt</option>
+<option>Konaklama</option>
+<option>Kargo / Kurye</option>
+<option>Ofis Gideri</option>
+<option>Temsil / Ağırlama</option>
+<option>Diğer</option>
+</select></div></div></div>
         </div>
         <label>Açıklama</label><textarea name="description"></textarea>
         <label>Fiş / Fatura Görseli</label><p class="muted">Fotoğraf seçince profesyonel OCR ile tutar ve tarih otomatik okunmaya çalışır. Göndermeden önce kontrol et.</p>
