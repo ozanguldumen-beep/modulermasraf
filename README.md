@@ -1,19 +1,23 @@
+# Modüler Masraf v17 - Fiş Alanları
 
-# Modüler Masraf v16 Smart Fields
+Bu sürümde masraf ekleme ekranına şu alanlar eklendi:
 
-Bu sürümde:
-- Firma Ünvanı alanı
-- Belge Tarihi alanı
-- Belge Numarası alanı
-- Fiş No alanı
-- Vergi Matrahı alanı
-- KDV Tutarı alanı
-- Toplam Tutar alanı
+- Firma Ünvanı
+- Belge Tarihi
+- Belge Numarası
+- Fiş No
+- Vergi Matrahı
+- KDV Tutarı
+- Toplam Tutar
 
-OCR parse örnekleri:
-- TOPLAM
-- TOPKDV
-- FİŞ NO
-- TARİH
+OCR sonucu bu alanlara otomatik doldurulur.
 
-Alanları otomatik doldurur.
+Railway Variables:
+
+```env
+OCR_PROVIDER=google
+GOOGLE_VISION_API_KEY=...
+SESSION_SECRET=...
+ADMIN_EMAIL=ozan@modulerotomasyon.com
+ADMIN_PASSWORD=123456
+```

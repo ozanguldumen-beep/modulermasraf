@@ -1,3 +1,31 @@
+
+function setFieldValue(selector, value) {
+  if (value === undefined || value === null || value === "") return;
+  const el = document.querySelector(selector);
+  if (!el) return;
+  el.value = String(value);
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function normalizeInputAmount(value) {
+  if (value === undefined || value === null || value === "") return "";
+  return String(value).replace(/\./g, "").replace(",", ".");
+}
+
+function fillReceiptFields(result) {
+  const p = result.parsed || result;
+  setFieldValue('#company_name, input[name="company_name"]', p.company_name);
+  setFieldValue('#document_date, input[name="document_date"]', p.document_date || p.date);
+  setFieldValue('#document_number, input[name="document_number"]', p.document_number);
+  setFieldValue('#receipt_no, input[name="receipt_no"]', p.receipt_no);
+  setFieldValue('#subtotal, input[name="subtotal"]', normalizeInputAmount(p.subtotal));
+  setFieldValue('#vat_amount, input[name="vat_amount"]', normalizeInputAmount(p.vat_amount));
+  setFieldValue('#total_amount, input[name="total_amount"]', normalizeInputAmount(p.total_amount || p.amount));
+  setFieldValue('#amount, input[name="amount"]', normalizeInputAmount(p.amount || p.total_amount));
+  setFieldValue('#expense_date, input[name="expense_date"]', p.date || p.document_date);
+}
+
 window.runOcrNow = async function(event) {
   if (event) {
     event.preventDefault();
@@ -14,14 +42,6 @@ window.runOcrNow = async function(event) {
   if (!file) {
     setOcrStatus("Önce fiş/fatura fotoğrafı seçmelisin.");
     setOcrDebug("Dosya bulunamadı.");
-    return false;
-  }
-
-  const fileName = (file.name || "").toLowerCase();
-  const fileType = (file.type || "").toLowerCase();
-  if (fileName.endsWith(".heic") || fileName.endsWith(".heif") || fileType.includes("heic") || fileType.includes("heif")) {
-    setOcrStatus("Bu dosya HEIC formatında. Google Vision bu akışta HEIC dosyayı güvenilir okuyamaz.");
-    setOcrDebug("Çözüm: iPhone Fotoğraflar’dan görseli JPEG olarak paylaş veya Ayarlar > Kamera > Formatlar > En Uyumlu seçeneğini kullan. Sonra JPG/PNG yükle.");
     return false;
   }
 
@@ -57,8 +77,7 @@ window.runOcrNow = async function(event) {
       return false;
     }
 
-    if (result.amount && amountInput) amountInput.value = result.amount;
-    if (result.date && dateInput) dateInput.value = result.date;
+    fillReceiptFields(result);
 
     setOcrStatus(
       "OCR tamamlandı (" + result.provider + "). " +
@@ -110,7 +129,7 @@ async function checkOcrConfig() {
       setOcrDebug(JSON.stringify(data, null, 2));
     } else {
       setOcrStatus("OCR hazır. Fiş seçip “Fişi Oku” butonuna bas.");
-      setOcrDebug("OCR ayarı OK v15: " + data.provider);
+      setOcrDebug("OCR ayarı OK: " + data.provider);
     }
   } catch (err) {
     console.warn("OCR status kontrol edilemedi:", err);
@@ -119,7 +138,7 @@ async function checkOcrConfig() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("Modüler Masraf OCR v15 yüklendi");
+  console.log("Modüler Masraf OCR v17 yüklendi");
 
   const fileInput = document.querySelector('#receipt, input[name="receipt"], input[type="file"]');
   let btn = document.getElementById("ocrBtn");
