@@ -357,7 +357,7 @@ ${user ? `<nav>
   ${adminLinks}
   <a href="/logout">Çıkış</a>
 </nav>` : ""}
-</header><main>${content}</main><script src="/public/ocr.js?v=187"></script></body></html>`;
+</header><main>${content}</main><script src="/public/ocr.js?v=189"></script></body></html>`;
 }
 
 function csvEscape(value) {
@@ -700,7 +700,7 @@ app.post("/api/ocr", requireLogin, ocrUpload.single("receipt"), async (req, res)
     }
 
     const fields = extractReceiptFieldsFromText(text);
-    if (!fields.document_number && fields.receipt_no) fields.document_number = fields.receipt_no;
+    
 
     res.json({
       ok: true,
@@ -780,14 +780,24 @@ app.get("/expenses/new", requireLogin, (req, res) => {
       <h1>Yeni Masraf Talebi</h1>
       <form method="post" action="/expenses" enctype="multipart/form-data">
         <label>Masraf Türü</label>
-        <select name="expense_type" required>
-          <option>Otopark</option><option>Yemek</option><option>Yakıt / Yol</option><option>Konaklama</option>
-          <option>Kargo</option><option>Genel Harcama</option><option>Demirbaş</option><option>Diğer</option>
-        </select>
+        <select name="expense_type">
+<option>Otopark</option>
+<option>Araç Yıkama</option>
+<option>Uçak Bileti</option>
+<option>Taksi</option>
+<option>Yemek</option>
+<option>Yakıt</option>
+<option>Konaklama</option>
+<option>Kargo / Kurye</option>
+<option>Ofis Gideri</option>
+<option>Temsil / Ağırlama</option>
+<option>Diğer</option>
+</select>
         <div class="grid">
           <div><label>Firma Ünvanı</label><input name="company_name" id="company_name"></div>
           <div><label>Belge Tarihi</label><input name="document_date" id="document_date" type="date"></div>
           <div><label>Belge Numarası</label><input name="document_number" id="document_number"></div>
+<div><label>Fiş No</label><input name="receipt_no" id="receipt_no"></div>
           <div><label>Vergi Matrahı</label><input name="subtotal" id="subtotal" type="number" step="0.01"></div>
           <div><label>KDV Tutarı</label><input name="vat_amount" id="vat_amount" type="number" step="0.01"></div>
           <div><label>Toplam Tutar</label><input name="amount" id="amount" type="number" step="0.01" required></div>

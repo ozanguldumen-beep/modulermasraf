@@ -1,6 +1,6 @@
 
 (function(){
-  console.log("Modüler Masraf OCR v18.7 HEIC server convert fixed yüklendi");
+  console.log("Modüler Masraf OCR v18.9 fisno visible clean yüklendi");
 
   function byId(id){ return document.getElementById(id); }
 
@@ -60,7 +60,8 @@
 
     setFieldValue(['#company_name','input[name="company_name"]'], result.company_name);
     setFieldValue(['#document_date','input[name="document_date"]'], documentDate);
-    setFieldValue(['#document_number','input[name="document_number"]'], result.document_number || result.receipt_no);
+    setFieldValue(['#document_number','input[name="document_number"]'], result.document_number);
+    setFieldValue(['#receipt_no','input[name="receipt_no"]'], result.receipt_no);
     setFieldValue(['#subtotal','input[name="subtotal"]'], result.subtotal);
     setFieldValue(['#vat_amount','input[name="vat_amount"]'], result.vat_amount);
     setFieldValue(['#amount','input[name="amount"]'], totalAmount);
@@ -202,6 +203,74 @@
 
   window.runOcrNow = runOcrNow;
 
+
+  function cleanupExpenseFormLayout() {
+    const selects = Array.from(document.querySelectorAll('select[name="expense_type"]'));
+    if (selects.length > 1) {
+      const first = selects[0];
+      const label = first.previousElementSibling;
+      if (label && label.tagName === "LABEL" && label.textContent.trim() === "Masraf Türü") {
+        label.remove();
+      }
+      first.remove();
+    }
+
+    if (!document.querySelector('input[name="receipt_no"]')) {
+      const doc = document.querySelector('input[name="document_number"]');
+      if (doc && doc.parentElement) {
+        const div = document.createElement("div");
+        div.innerHTML = '<label>Fiş No</label><input name="receipt_no">';
+        doc.parentElement.insertAdjacentElement("afterend", div);
+      }
+    }
+
+    document.querySelectorAll(".grid").forEach(g => {
+      g.style.gridTemplateColumns = "repeat(4, minmax(0, 1fr))";
+      g.style.gap = "18px 20px";
+      g.querySelectorAll("input,select").forEach(el => {
+        el.style.width = "100%";
+        el.style.height = "52px";
+      });
+    });
+  }
+
+
+  function forceCleanMasrafForm() {
+    // 1) Üstte tek başına duran eski Masraf Türü select'i kaldır.
+    const selects = Array.from(document.querySelectorAll('select[name="expense_type"]'));
+    if (selects.length > 1) {
+      // En üstte duran ilk select'i sil, grid içinde kalan son select'i koru.
+      const first = selects[0];
+      const label = first.previousElementSibling;
+      if (label && label.tagName === "LABEL" && label.textContent.trim() === "Masraf Türü") {
+        label.remove();
+      }
+      first.remove();
+    }
+
+    // 2) Fiş No kutusu görünmüyorsa Belge Numarası'nın hemen yanına ekle.
+    if (!document.querySelector('input[name="receipt_no"], #receipt_no')) {
+      const docInput = document.querySelector('input[name="document_number"], #document_number');
+      if (docInput && docInput.parentElement) {
+        const box = document.createElement("div");
+        box.innerHTML = '<label>Fiş No</label><input name="receipt_no" id="receipt_no">';
+        docInput.parentElement.insertAdjacentElement("afterend", box);
+      }
+    }
+
+    // 3) Grid ölçülerini simetrik yap.
+    document.querySelectorAll(".grid").forEach(g => {
+      g.style.display = "grid";
+      g.style.gridTemplateColumns = "repeat(4, minmax(0, 1fr))";
+      g.style.gap = "18px 20px";
+      g.style.alignItems = "end";
+      g.querySelectorAll("input,select").forEach(el => {
+        el.style.width = "100%";
+        el.style.height = "52px";
+      });
+    });
+  }
+
   function bindOcrButton() {
     const fileInput = document.querySelector('#receipt, input[name="receipt"], input[type="file"]');
     let btn = byId("ocrBtn");
@@ -233,6 +302,9 @@
       setOcrStatus("OCR hazır. Fiş seçip “Fişi Oku” butonuna bas.");
     }
   }
+
+  cleanupExpenseFormLayout();
+  forceCleanMasrafForm();
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", bindOcrButton);

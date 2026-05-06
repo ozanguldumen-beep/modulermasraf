@@ -153,3 +153,22 @@ Not: Tarayıcı HEIC dosyasını decode edemiyorsa iPhone Kamera > Formatlar > E
 
 Önemli:
 Railway deploy sonrası eski build cache çalışıyorsa Redeploy/Restart yapın.
+
+
+## v18.8 Layout + Fiş No Fix
+
+- Üstte kalan fazla Masraf Türü alanı kaldırıldı.
+- Masraf Türü sadece Masraf Tarihi yanında kalacak şekilde düzenlendi.
+- Fiş No alanı geri eklendi.
+- Belge Numarası artık Saat / EKÜ / Z No gibi teknik satırlardan doldurulmaz.
+- OCR'da Fiş No ayrı alana yazılır.
+- Form kutuları 4 kolon simetrik grid olarak düzenlendi.
+
+
+## v18.9 Fiş No Görünür + Temiz Layout
+
+- Fiş No kutusu Belge Numarası'nın yanına kesin eklendi.
+- Üstte tek başına duran eski Masraf Türü kaldırıldı.
+- Masraf Türü sadece alttaki düzenli grid içinde kalır.
+- Fiş No ayrı OCR alanı olarak doldurulur.
+- Belge No, Fiş No ile karıştırılmaz.
