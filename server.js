@@ -342,7 +342,7 @@ function layout(title, user, content) {
   return `<!doctype html>
 <html lang="tr"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title}</title><link rel="stylesheet" href="/public/style.css"><script src="/public/ocr.js?v=17" defer></script>
+<title>${title}</title><link rel="stylesheet" href="/public/style.css"><script src="/public/ocr.js?v=18" defer></script>
 </head><body>
 <header><div class="brand">Modüler Masraf</div>
 ${user ? `<nav>
@@ -403,17 +403,28 @@ function normalizeAmountValue(value) {
 
 function extractAmountFromText(text) {
   if (!text) return null;
-  const cleaned = text.replace(/\s/g, " ");
+  const raw = normalizeReceiptText(text);
+  const cleaned = raw.replace(/\s+/g, " ");
+  const amountPattern = "(\*?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\*?\s*\d+[.,]\d{2})";
 
-  const priorityRegex = /(TOPLAM|TOTAL|GENEL TOPLAM|TUTAR|ÖDENECEK|ODENECEK|KREDI|KREDİ|NAKİT|NAKIT|KART)[^\d]{0,45}(\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\d+[.,]\d{2})/i;
+  const priorityRegex = new RegExp("(GENEL\s*TOPLAM|TOPLAM|TOTAL|ÖDENECEK|ODENECEK|KRED[İI]|NAK[İI]T|KART)[^0-9]{0,60}" + amountPattern, "i");
   const priorityMatch = cleaned.match(priorityRegex);
-  if (priorityMatch && priorityMatch[2]) return normalizeAmountValue(priorityMatch[2]);
+  if (priorityMatch && priorityMatch[2]) return normalizeAmountValue(priorityMatch[2].replace(/\*/g, ""));
 
-  const matches = cleaned.match(/(\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\d+[.,]\d{2})/g);
+  const lines = raw.split("\n").map(x => x.trim()).filter(Boolean);
+  for (let i = 0; i < lines.length; i++) {
+    if (/^(GENEL\s*)?TOPLAM|TOTAL|ÖDENECEK|ODENECEK|KRED[İI]|NAK[İI]T/i.test(lines[i])) {
+      const nearby = [lines[i], lines[i+1] || "", lines[i+2] || ""].join(" ");
+      const m = nearby.match(new RegExp(amountPattern, "i"));
+      if (m && m[1]) return normalizeAmountValue(m[1].replace(/\*/g, ""));
+    }
+  }
+
+  const matches = cleaned.match(/\*?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\*?\s*\d+[.,]\d{2}/g);
   if (!matches || !matches.length) return null;
 
   const sorted = matches
-    .map(v => ({ raw: v, num: parseFloat(normalizeAmountValue(v)) }))
+    .map(v => ({ raw: v, num: parseFloat(normalizeAmountValue(v.replace(/\*/g, ""))) }))
     .filter(x => !isNaN(x.num) && x.num > 0)
     .sort((a, b) => b.num - a.num);
 
@@ -477,15 +488,25 @@ function extractReceiptNo(text) {
 }
 
 function extractVatAmount(text) {
-  const t = normalizeReceiptText(text).replace(/\s+/g, " ");
+  const raw = normalizeReceiptText(text);
+  const t = raw.replace(/\s+/g, " ");
+  const amountPattern = "(\*?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\*?\s*\d+[.,]\d{2})";
   const patterns = [
-    /TOP\s*KDV[^\d]{0,20}(\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\d+[.,]\d{2})/i,
-    /KDV\s*TOPLAMI[^\d]{0,20}(\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\d+[.,]\d{2})/i,
-    /KDV[^\d]{0,20}(\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\d+[.,]\d{2})/i
+    new RegExp("TOP\s*KDV[^0-9]{0,30}" + amountPattern, "i"),
+    new RegExp("KDV\s*TOPLAMI[^0-9]{0,30}" + amountPattern, "i"),
+    new RegExp("KDV[^0-9]{0,30}" + amountPattern, "i")
   ];
   for (const p of patterns) {
     const m = t.match(p);
-    if (m && m[1]) return normalizeAmountValue(m[1]);
+    if (m && m[1]) return normalizeAmountValue(m[1].replace(/\*/g, ""));
+  }
+  const lines = raw.split("\n").map(x => x.trim()).filter(Boolean);
+  for (let i = 0; i < lines.length; i++) {
+    if (/TOP\s*KDV|KDV\s*TOPLAMI|KDV/i.test(lines[i])) {
+      const nearby = [lines[i], lines[i+1] || ""].join(" ");
+      const m = nearby.match(new RegExp(amountPattern, "i"));
+      if (m && m[1]) return normalizeAmountValue(m[1].replace(/\*/g, ""));
+    }
   }
   return "";
 }
@@ -530,15 +551,13 @@ function parseReceiptFields(text) {
   };
 }
 
-async function runGoogleVisionOCR(fileBuffer) {
+async function callGoogleVision(fileBuffer, featureType) {
   const apiKey = process.env.GOOGLE_VISION_API_KEY;
-  if (!apiKey) throw new Error("GOOGLE_VISION_API_KEY tanımlı değil.");
-
   const body = {
     requests: [
       {
         image: { content: fileBuffer.toString("base64") },
-        features: [{ type: "DOCUMENT_TEXT_DETECTION" }],
+        features: [{ type: featureType }],
         imageContext: { languageHints: ["tr", "en"] }
       }
     ]
@@ -558,6 +577,21 @@ async function runGoogleVisionOCR(fileBuffer) {
   return data.responses?.[0]?.fullTextAnnotation?.text ||
          data.responses?.[0]?.textAnnotations?.[0]?.description ||
          "";
+}
+
+async function runGoogleVisionOCR(fileBuffer) {
+  const apiKey = process.env.GOOGLE_VISION_API_KEY;
+  if (!apiKey) throw new Error("GOOGLE_VISION_API_KEY tanımlı değil.");
+
+  // Önce belge/fiş için daha iyi olan DOCUMENT_TEXT_DETECTION denenir.
+  let text = await callGoogleVision(fileBuffer, "DOCUMENT_TEXT_DETECTION");
+
+  // Bazı fotoğraflarda DOCUMENT boş dönebiliyor; eski çalışan metoda fallback yapıyoruz.
+  if (!text || !text.trim()) {
+    text = await callGoogleVision(fileBuffer, "TEXT_DETECTION");
+  }
+
+  return text || "";
 }
 
 async function runAzureVisionOCR(fileBuffer, mimeType) {
@@ -618,14 +652,26 @@ app.post("/api/ocr", requireLogin, ocrUpload.single("receipt"), async (req, res)
     if (!req.file) return res.status(400).json({ ok: false, error: "Fiş dosyası gelmedi." });
 
     const text = await runProfessionalOCR(req.file.buffer, req.file.mimetype);
+    if (!text || !text.trim()) {
+      return res.status(422).json({
+        ok: false,
+        error: "Google OCR görselden metin okuyamadı. Fotoğrafı JPG/PNG olarak, daha net ve dik açıyla tekrar yükleyin.",
+        provider: (process.env.OCR_PROVIDER || "google").toLowerCase(),
+        text: ""
+      });
+    }
+
     const parsed = parseReceiptFields(text);
 
     res.json({
       ok: true,
       provider: (process.env.OCR_PROVIDER || "google").toLowerCase(),
       ...parsed,
+      amount: parsed.total_amount || parsed.amount || "",
+      date: parsed.document_date || parsed.date || "",
       parsed,
-      text: text.substring(0, 3000)
+      text: text.substring(0, 3000),
+      textLength: text.length
     });
   } catch (err) {
     console.error("OCR error:", err);

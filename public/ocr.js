@@ -10,7 +10,10 @@ function setFieldValue(selector, value) {
 
 function normalizeInputAmount(value) {
   if (value === undefined || value === null || value === "") return "";
-  return String(value).replace(/\./g, "").replace(",", ".");
+  let v = String(value).trim().replace(/\s/g, "").replace(/\*/g, "");
+  if (v.includes(".") && v.includes(",")) return v.replace(/\./g, "").replace(",", ".");
+  if (v.includes(",")) return v.replace(",", ".");
+  return v;
 }
 
 function fillReceiptFields(result) {
@@ -79,10 +82,12 @@ window.runOcrNow = async function(event) {
 
     fillReceiptFields(result);
 
+    const p = result.parsed || result;
     setOcrStatus(
       "OCR tamamlandı (" + result.provider + "). " +
-      (result.amount ? "Tutar: " + result.amount + ". " : "Tutar bulunamadı. ") +
-      (result.date ? "Tarih: " + result.date + "." : "Tarih bulunamadı.")
+      ((p.total_amount || result.amount) ? "Toplam: " + (p.total_amount || result.amount) + ". " : "Toplam bulunamadı. ") +
+      ((p.document_date || result.date) ? "Tarih: " + (p.document_date || result.date) + ". " : "Tarih bulunamadı. ") +
+      (p.company_name ? "Firma: " + p.company_name + "." : "")
     );
 
     setOcrDebug("Okunan metin önizleme:\n" + (result.text || "").slice(0, 800));
@@ -138,7 +143,7 @@ async function checkOcrConfig() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("Modüler Masraf OCR v17 yüklendi");
+  console.log("Modüler Masraf OCR v18 yüklendi");
 
   const fileInput = document.querySelector('#receipt, input[name="receipt"], input[type="file"]');
   let btn = document.getElementById("ocrBtn");
