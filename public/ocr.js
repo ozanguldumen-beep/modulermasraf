@@ -1,173 +1,85 @@
 
-function setFieldValue(selector, value) {
-  if (value === undefined || value === null || value === "") return;
-  const el = document.querySelector(selector);
-  if (!el) return;
-  el.value = String(value);
-  el.dispatchEvent(new Event("input", { bubbles: true }));
-  el.dispatchEvent(new Event("change", { bubbles: true }));
-}
+console.log("Modüler Masraf OCR v19 stable loaded");
 
-function normalizeInputAmount(value) {
-  if (value === undefined || value === null || value === "") return "";
-  let v = String(value).trim().replace(/\s/g, "").replace(/\*/g, "");
-  if (v.includes(".") && v.includes(",")) return v.replace(/\./g, "").replace(",", ".");
-  if (v.includes(",")) return v.replace(",", ".");
-  return v;
-}
+function q(sel){ return document.querySelector(sel); }
 
-function fillReceiptFields(result) {
-  const p = result.parsed || result;
-  setFieldValue('#company_name, input[name="company_name"]', p.company_name);
-  setFieldValue('#document_date, input[name="document_date"]', p.document_date || p.date);
-  setFieldValue('#document_number, input[name="document_number"]', p.document_number);
-  setFieldValue('#receipt_no, input[name="receipt_no"]', p.receipt_no);
-  setFieldValue('#subtotal, input[name="subtotal"]', normalizeInputAmount(p.subtotal));
-  setFieldValue('#vat_amount, input[name="vat_amount"]', normalizeInputAmount(p.vat_amount));
-  setFieldValue('#total_amount, input[name="total_amount"]', normalizeInputAmount(p.total_amount || p.amount));
-  setFieldValue('#amount, input[name="amount"]', normalizeInputAmount(p.amount || p.total_amount));
-  setFieldValue('#expense_date, input[name="expense_date"]', p.date || p.document_date);
-}
-
-window.runOcrNow = async function(event) {
-  if (event) {
-    event.preventDefault();
-    event.stopPropagation();
+function setVal(names, value){
+  if(value === undefined || value === null || value === "") return;
+  for(const name of names){
+    const el = document.querySelector(`[name="${name}"], #${name}`);
+    if(el){ el.value = value; return; }
   }
+}
 
-  const fileInput = document.querySelector('#receipt, input[name="receipt"], input[type="file"]');
-  const amountInput = document.querySelector('#amount, input[name="amount"]');
-  const dateInput = document.querySelector('#expense_date, input[name="expense_date"]');
-  const btn = document.getElementById("ocrBtn");
+function trToNumberText(v){
+  if(!v) return "";
+  let s = String(v).trim();
+  s = s.replace(/[^\d,\.]/g, "");
+  if(s.includes(",") && s.includes(".")){
+    s = s.replace(/\./g, "").replace(",", ".");
+  } else if(s.includes(",")){
+    s = s.replace(",", ".");
+  }
+  const n = Number(s);
+  if(!Number.isFinite(n)) return "";
+  return n.toFixed(2);
+}
 
-  const file = fileInput && fileInput.files && fileInput.files[0];
+function fillFields(data){
+  if(!data) return;
 
-  if (!file) {
-    setOcrStatus("Önce fiş/fatura fotoğrafı seçmelisin.");
-    setOcrDebug("Dosya bulunamadı.");
+  const total = data.total_amount || data.amount;
+  const date = data.document_date || data.expense_date;
+
+  setVal(["company_name","vendor_name","firma_unvani"], data.company_name);
+  setVal(["document_date","belge_tarihi","expense_date","date"], date);
+  setVal(["document_number","belge_numarasi"], data.document_number);
+  setVal(["receipt_no","fis_no"], data.receipt_no);
+  setVal(["subtotal","tax_base","vergi_matrahi"], trToNumberText(data.subtotal));
+  setVal(["vat_amount","kdv_tutari"], trToNumberText(data.vat_amount));
+  setVal(["total_amount","toplam_tutar","amount"], trToNumberText(total));
+}
+
+window.runOcrNow = async function(event){
+  if(event) event.preventDefault();
+
+  const input = document.querySelector('input[type="file"][name="receipt"], input[type="file"][name="file"], input[type="file"]');
+  const status = document.getElementById("ocrStatus");
+  const debug = document.getElementById("ocrDebug");
+
+  if(!input || !input.files || !input.files[0]){
+    if(status) status.textContent = "Önce fiş/fatura görseli seç.";
     return false;
   }
 
-  try {
-    if (btn) btn.disabled = true;
-    setOcrStatus("Fiş sunucuya yükleniyor ve Google OCR okunuyor...");
-    setOcrDebug("Dosya: " + file.name + " / " + Math.round(file.size / 1024) + " KB");
+  if(status) status.textContent = "OCR okunuyor, lütfen bekle...";
+  if(debug) debug.textContent = "";
 
-    const formData = new FormData();
-    formData.append("receipt", file);
+  const fd = new FormData();
+  fd.append("receipt", input.files[0]);
 
-    const response = await fetch("/api/ocr", {
-      method: "POST",
-      body: formData
-    });
+  try{
+    const res = await fetch("/api/ocr", { method:"POST", body: fd });
+    const data = await res.json();
 
-    const raw = await response.text();
-    let result;
-
-    try {
-      result = JSON.parse(raw);
-    } catch (e) {
-      setOcrStatus("OCR JSON dönmedi.");
-      setOcrDebug(raw.slice(0, 500));
+    if(!data.ok){
+      if(status) status.textContent = "OCR hata: " + (data.error || "Bilinmeyen hata");
+      if(debug) debug.textContent = JSON.stringify(data, null, 2);
       return false;
     }
 
-    console.log("OCR result:", result);
+    fillFields(data);
 
-    if (!response.ok || !result.ok) {
-      setOcrStatus("OCR hata: " + (result.error || response.statusText || "Bilinmeyen hata"));
-      setOcrDebug(JSON.stringify(result, null, 2));
-      return false;
+    if(status){
+      status.textContent = `OCR tamamlandı (${data.provider || "google"}). Tutar: ${data.total_amount || data.amount || "-"} Tarih: ${data.document_date || data.expense_date || "-"}.`;
     }
-
-    fillReceiptFields(result);
-
-    const p = result.parsed || result;
-    setOcrStatus(
-      "OCR tamamlandı (" + result.provider + "). " +
-      ((p.total_amount || result.amount) ? "Toplam: " + (p.total_amount || result.amount) + ". " : "Toplam bulunamadı. ") +
-      ((p.document_date || result.date) ? "Tarih: " + (p.document_date || result.date) + ". " : "Tarih bulunamadı. ") +
-      (p.company_name ? "Firma: " + p.company_name + "." : "")
-    );
-
-    setOcrDebug("Okunan metin önizleme:\n" + (result.text || "").slice(0, 800));
-  } catch (err) {
-    console.error("OCR frontend error:", err);
-    setOcrStatus("OCR bağlantı hatası: " + err.message);
-    setOcrDebug(err.stack || String(err));
-  } finally {
-    if (btn) btn.disabled = false;
+    if(debug){
+      debug.textContent = "Okunan metin önizleme:\n" + (data.text || "").slice(0, 3000);
+    }
+  }catch(e){
+    if(status) status.textContent = "OCR bağlantı hatası: " + e.message;
+    if(debug) debug.textContent = String(e.stack || e);
   }
 
   return false;
 };
-
-function setOcrStatus(message) {
-  let status = document.getElementById("ocrStatus");
-  if (!status) {
-    status = document.createElement("div");
-    status.id = "ocrStatus";
-    status.className = "ocr-status";
-    const fileInput = document.querySelector('#receipt, input[name="receipt"], input[type="file"]');
-    if (fileInput && fileInput.parentNode) fileInput.parentNode.insertBefore(status, fileInput.nextSibling);
-  }
-  if (status) status.textContent = message;
-}
-
-function setOcrDebug(message) {
-  let debug = document.getElementById("ocrDebug");
-  if (debug) debug.textContent = message || "";
-}
-
-async function checkOcrConfig() {
-  try {
-    const res = await fetch("/api/ocr-status");
-    const data = await res.json();
-
-    console.log("OCR config:", data);
-
-    if (data.provider === "google" && !data.googleKey) {
-      setOcrStatus("OCR ayarı eksik: Railway Variables içinde GOOGLE_VISION_API_KEY görünmüyor.");
-      setOcrDebug(JSON.stringify(data, null, 2));
-    } else if (data.provider === "azure" && (!data.azureEndpoint || !data.azureKey)) {
-      setOcrStatus("OCR ayarı eksik: Azure endpoint/key görünmüyor.");
-      setOcrDebug(JSON.stringify(data, null, 2));
-    } else {
-      setOcrStatus("OCR hazır. Fiş seçip “Fişi Oku” butonuna bas.");
-      setOcrDebug("OCR ayarı OK: " + data.provider);
-    }
-  } catch (err) {
-    console.warn("OCR status kontrol edilemedi:", err);
-    setOcrDebug("OCR status kontrol edilemedi: " + err.message);
-  }
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  console.log("Modüler Masraf OCR v18 yüklendi");
-
-  const fileInput = document.querySelector('#receipt, input[name="receipt"], input[type="file"]');
-  let btn = document.getElementById("ocrBtn");
-
-  if (fileInput && !btn) {
-    btn = document.createElement("button");
-    btn.type = "button";
-    btn.id = "ocrBtn";
-    btn.className = "secondary";
-    btn.textContent = "Fişi Oku / Tutarı Otomatik Doldur";
-    btn.onclick = window.runOcrNow;
-    fileInput.parentNode.insertBefore(btn, fileInput.nextSibling);
-  } else if (btn) {
-    btn.type = "button";
-    btn.onclick = window.runOcrNow;
-  }
-
-  if (fileInput) {
-    fileInput.addEventListener("change", () => {
-      const file = fileInput.files && fileInput.files[0];
-      setOcrStatus(file ? "Fiş seçildi. OCR için “Fişi Oku” butonuna bas." : "Fiş seçip “Fişi Oku” butonuna bas.");
-      setOcrDebug(file ? ("Seçilen dosya: " + file.name) : "");
-    });
-
-    checkOcrConfig();
-  }
-});

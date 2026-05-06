@@ -1,7 +1,6 @@
 {
-  "name": "moduler-masraf-v5-rol-akis",
-  "version": "5.0.0",
-  "description": "Modüler Masraf v5 - değiştirilebilir şirket rolleri ve yeni onay akışı",
+  "name": "moduler-masraf-v19-stable-ocr-fields",
+  "version": "19.0.0",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
