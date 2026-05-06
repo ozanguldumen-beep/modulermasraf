@@ -17,6 +17,14 @@ window.runOcrNow = async function(event) {
     return false;
   }
 
+  const fileName = (file.name || "").toLowerCase();
+  const fileType = (file.type || "").toLowerCase();
+  if (fileName.endsWith(".heic") || fileName.endsWith(".heif") || fileType.includes("heic") || fileType.includes("heif")) {
+    setOcrStatus("Bu dosya HEIC formatında. Google Vision bu akışta HEIC dosyayı güvenilir okuyamaz.");
+    setOcrDebug("Çözüm: iPhone Fotoğraflar’dan görseli JPEG olarak paylaş veya Ayarlar > Kamera > Formatlar > En Uyumlu seçeneğini kullan. Sonra JPG/PNG yükle.");
+    return false;
+  }
+
   try {
     if (btn) btn.disabled = true;
     setOcrStatus("Fiş sunucuya yükleniyor ve Google OCR okunuyor...");
@@ -102,7 +110,7 @@ async function checkOcrConfig() {
       setOcrDebug(JSON.stringify(data, null, 2));
     } else {
       setOcrStatus("OCR hazır. Fiş seçip “Fişi Oku” butonuna bas.");
-      setOcrDebug("OCR ayarı OK: " + data.provider);
+      setOcrDebug("OCR ayarı OK v15: " + data.provider);
     }
   } catch (err) {
     console.warn("OCR status kontrol edilemedi:", err);
@@ -111,7 +119,7 @@ async function checkOcrConfig() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("Modüler Masraf OCR v12 yüklendi");
+  console.log("Modüler Masraf OCR v15 yüklendi");
 
   const fileInput = document.querySelector('#receipt, input[name="receipt"], input[type="file"]');
   let btn = document.getElementById("ocrBtn");

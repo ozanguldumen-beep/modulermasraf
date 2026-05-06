@@ -343,6 +343,7 @@ function layout(title, user, content) {
 <html lang="tr"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title}</title><link rel="stylesheet" href="/public/style.css">
+<script src="/public/ocr.js?v=15" defer></script>
 </head><body>
 <header><div class="brand">Modüler Masraf</div>
 ${user ? `<nav>
@@ -668,7 +669,7 @@ app.get("/expenses/new", requireLogin, (req, res) => {
         <label>Masraf Tarihi</label><input name="expense_date" id="expense_date" type="date" required>
         <label>Açıklama</label><textarea name="description"></textarea>
         <label>Fiş / Fatura Görseli</label><p class="muted">Fotoğraf seçince profesyonel OCR ile tutar ve tarih otomatik okunmaya çalışır. Göndermeden önce kontrol et.</p>
-        <input name="receipt" id="receipt" type="file" accept="image/*,.pdf">
+        <input name="receipt" id="receipt" type="file" accept="image/jpeg,image/png,image/webp,image/tiff,.jpg,.jpeg,.png,.webp,.tif,.tiff">
         <button type="button" id="ocrBtn" class="secondary" onclick="window.runOcrNow(event)">Fişi Oku / Tutarı Otomatik Doldur</button>
         <div id="ocrStatus" class="ocr-status">OCR hazır. Fiş seçip “Fişi Oku” butonuna bas.</div>
         <div id="ocrDebug" class="ocr-debug"></div>

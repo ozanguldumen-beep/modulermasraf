@@ -96,3 +96,11 @@ Azure Image Analysis API `features=read` ile OCR sonucu döndürür.
 - JS cache kırmak için `/public/ocr.js?v=12` kullanılır.
 - OCR debug alanı eklenmiştir.
 - Console'da `Modüler Masraf OCR v12 yüklendi` yazmalıdır.
+
+
+## v15 OCR Buton + HEIC Fix
+
+- Layout içine `/public/ocr.js?v=15` script bağlantısı eklendi.
+- “Fişi Oku” butonunun hiçbir işlem yapmama sebebi giderildi.
+- iPhone HEIC/HEIF dosyaları için ekranda net uyarı verilir.
+- OCR için JPG/PNG/WEBP/TIFF yükleme önerilir.
