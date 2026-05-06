@@ -8,10 +8,6 @@ window.runOcrNow = async function(event) {
   const amountInput = document.querySelector('#amount, input[name="amount"]');
   const dateInput = document.querySelector('#expense_date, input[name="expense_date"]');
   const btn = document.getElementById("ocrBtn");
-  const companyInput = document.querySelector('#company_name, input[name="company_name"]');
-  const docNoInput = document.querySelector('#document_number, input[name="document_number"]');
-  const subtotalInput = document.querySelector('#subtotal, input[name="subtotal"]');
-  const vatInput = document.querySelector('#vat_amount, input[name="vat_amount"]');
 
   const file = fileInput && fileInput.files && fileInput.files[0];
 
@@ -53,13 +49,8 @@ window.runOcrNow = async function(event) {
       return false;
     }
 
-    const f = result.fields || {};
     if (result.amount && amountInput) amountInput.value = result.amount;
     if (result.date && dateInput) dateInput.value = result.date;
-    if (f.company_name && companyInput) companyInput.value = f.company_name;
-    if (f.document_number && docNoInput) docNoInput.value = f.document_number;
-    if (f.subtotal && subtotalInput) subtotalInput.value = f.subtotal;
-    if (f.vat_amount && vatInput) vatInput.value = f.vat_amount;
 
     setOcrStatus(
       "OCR tamamlandı (" + result.provider + "). " +
@@ -120,7 +111,7 @@ async function checkOcrConfig() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("Modüler Masraf OCR v13 yüklendi");
+  console.log("Modüler Masraf OCR v12 yüklendi");
 
   const fileInput = document.querySelector('#receipt, input[name="receipt"], input[type="file"]');
   let btn = document.getElementById("ocrBtn");
