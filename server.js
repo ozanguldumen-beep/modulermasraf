@@ -355,7 +355,7 @@ ${user ? `<nav>
   ${adminLinks}
   <a href="/logout">Çıkış</a>
 </nav>` : ""}
-</header><main>${content}</main></body></html>`;
+</header><main>${content}</main><script src="/public/ocr.js?v=183"></script></body></html>`;
 }
 
 function csvEscape(value) {

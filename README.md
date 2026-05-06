@@ -104,3 +104,12 @@ Azure Image Analysis API `features=read` ile OCR sonucu döndürür.
 - Sadece masraf ekranına Firma Ünvanı, Belge Tarihi, Belge Numarası, Fiş No, Vergi Matrahı, KDV Tutarı, Toplam Tutar alanları eklenmiştir.
 - OCR endpoint aynı Google Vision TEXT_DETECTION mantığını kullanır.
 - `public/ocr.js` yeni alanları doldurur.
+
+
+## v18.3 OCR Buton Fix
+
+- `layout()` içine `/public/ocr.js?v=183` script bağlantısı eklendi.
+- Fiş Oku butonu `addEventListener` ile doğrudan bağlandı.
+- Inline `onclick` bağımlılığı kaldırıldı.
+- Console'da `Modüler Masraf OCR v18.3 button fixed yüklendi` yazmalıdır.
+- Buton basılınca `OCR okunuyor...` durumuna geçer.
