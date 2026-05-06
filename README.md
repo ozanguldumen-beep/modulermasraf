@@ -1,9 +1,7 @@
+# Modüler Masraf v17 - Fiş Alanları
 
-# Modüler Masraf v19 - Stable OCR + Yeni Fiş Alanları
+Bu sürümde masraf ekleme ekranına şu alanlar eklendi:
 
-Bu paket v15'te çalışan OCR mantığına geri döner ve yeni fiş alanlarını ekler.
-
-## Eklenen alanlar
 - Firma Ünvanı
 - Belge Tarihi
 - Belge Numarası
@@ -12,12 +10,20 @@ Bu paket v15'te çalışan OCR mantığına geri döner ve yeni fiş alanların�
 - KDV Tutarı
 - Toplam Tutar
 
-## Önemli
-Railway Variables:
-- OCR_PROVIDER=google
-- GOOGLE_VISION_API_KEY=...
-- SESSION_SECRET=...
+OCR sonucu bu alanlara otomatik doldurulur.
 
-## OCR Mantığı
-Önce Google TEXT_DETECTION denenir.
-Boş dönerse DOCUMENT_TEXT_DETECTION denenir.
+Railway Variables:
+
+```env
+OCR_PROVIDER=google
+GOOGLE_VISION_API_KEY=...
+SESSION_SECRET=...
+ADMIN_EMAIL=ozan@modulerotomasyon.com
+ADMIN_PASSWORD=123456
+```
+
+
+## v18.1 Restore
+- v18 yapısı korundu.
+- v19 sadeleşmesi geri alınmadı; bu paket v18 tabanlıdır.
+- OCR sırası çalışan v15/v16 mantığına çevrildi: önce TEXT_DETECTION, sonra DOCUMENT_TEXT_DETECTION.
