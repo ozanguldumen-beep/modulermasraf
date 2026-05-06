@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= title || 'Modüler Masraf' %></title>
+  <link rel="stylesheet" href="/public/style.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/dashboard">Modüler Masraf</a>
+  <% if (user) { %>
+    <nav>
+      <a href="/expenses/new">Yeni Masraf</a>
+      <a href="/reports">Raporlar</a>
+      <% if (user.roles && user.roles.includes('admin')) { %><a href="/admin/users">Kullanıcılar</a><% } %>
+      <form method="post" action="/logout"><button>Çıkış</button></form>
+    </nav>
+  <% } %>
+</header>
+<main class="container">
+<% if (flash) { %><div class="alert <%= flash.type %>"><%= flash.message %></div><% } %>
