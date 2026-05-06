@@ -498,30 +498,64 @@ async function runGoogleVisionOCR(fileBuffer) {
   const apiKey = process.env.GOOGLE_VISION_API_KEY;
   if (!apiKey) throw new Error("GOOGLE_VISION_API_KEY tanımlı değil.");
 
-  const body = {
-    requests: [
-      {
-        image: { content: fileBuffer.toString("base64") },
-        features: [{ type: "TEXT_DETECTION" }],
-        imageContext: { languageHints: ["tr", "en"] }
-      }
-    ]
-  };
+  async function callGoogleVision(featureType) {
+    const body = {
+      requests: [
+        {
+          image: { content: fileBuffer.toString("base64") },
+          features: [{ type: featureType }],
+          imageContext: { languageHints: ["tr", "en"] }
+        }
+      ]
+    };
 
-  const response = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
+    const response = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
 
-  const data = await response.json();
-  if (!response.ok || data.error) {
-    throw new Error(data.error?.message || "Google Vision OCR hatası.");
+    const data = await response.json();
+
+    if (!response.ok || data.error) {
+      throw new Error(data.error?.message || "Google Vision OCR hatası.");
+    }
+
+    const r = data.responses?.[0] || {};
+    const text =
+      r.fullTextAnnotation?.text ||
+      r.textAnnotations?.[0]?.description ||
+      "";
+
+    return {
+      text,
+      rawKeys: Object.keys(r),
+      error: r.error?.message || null
+    };
   }
 
-  return data.responses?.[0]?.fullTextAnnotation?.text ||
-         data.responses?.[0]?.textAnnotations?.[0]?.description ||
-         "";
+  // Çalışan v15 mantığı: önce DOCUMENT_TEXT_DETECTION.
+  // Bazı fişlerde boş dönerse TEXT_DETECTION fallback denenir.
+  let first = await callGoogleVision("DOCUMENT_TEXT_DETECTION");
+  if (first.error) throw new Error(first.error);
+
+  if (first.text && first.text.trim()) {
+    return first.text;
+  }
+
+  console.warn("DOCUMENT_TEXT_DETECTION boş döndü, TEXT_DETECTION fallback deneniyor.", first.rawKeys);
+
+  let second = await callGoogleVision("TEXT_DETECTION");
+  if (second.error) throw new Error(second.error);
+
+  if (!second.text || !second.text.trim()) {
+    console.warn("Google Vision iki metodda da boş metin döndürdü.", {
+      documentKeys: first.rawKeys,
+      textKeys: second.rawKeys
+    });
+  }
+
+  return second.text || "";
 }
 
 async function runAzureVisionOCR(fileBuffer, mimeType) {
@@ -582,6 +616,19 @@ app.post("/api/ocr", requireLogin, ocrUpload.single("receipt"), async (req, res)
     if (!req.file) return res.status(400).json({ ok: false, error: "Fiş dosyası gelmedi." });
 
     const text = await runProfessionalOCR(req.file.buffer, req.file.mimetype);
+
+    if (!text || !text.trim()) {
+      return res.status(422).json({
+        ok: false,
+        provider: (process.env.OCR_PROVIDER || "google").toLowerCase(),
+        error: "Google OCR cevap verdi ama metin boş döndü. Bu genelde HEIC formatı, çok yüksek çözünürlük, bulanık/kırpık fotoğraf veya Google'ın image decode edememesi nedeniyle olur. Aynı fişi JPG/PNG olarak deneyin.",
+        text: "",
+        textLength: 0,
+        mimeType: req.file.mimetype,
+        fileSize: req.file.size
+      });
+    }
+
     const fields = extractReceiptFieldsFromText(text);
 
     res.json({
@@ -590,7 +637,10 @@ app.post("/api/ocr", requireLogin, ocrUpload.single("receipt"), async (req, res)
       amount: fields.total_amount,
       date: fields.document_date,
       ...fields,
-      text: text.substring(0, 3000)
+      text: text.substring(0, 3000),
+      textLength: text.length,
+      mimeType: req.file.mimetype,
+      fileSize: req.file.size
     });
   } catch (err) {
     console.error("OCR error:", err);

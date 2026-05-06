@@ -1,6 +1,6 @@
 
 (function(){
-  console.log("Modüler Masraf OCR v18.3 button fixed yüklendi");
+  console.log("Modüler Masraf OCR v18.4 google restore yüklendi");
 
   function byId(id){ return document.getElementById(id); }
 
@@ -125,8 +125,8 @@
       const amountText = result.total_amount || result.amount || "-";
       const dateText = result.document_date || result.date || "-";
 
-      setOcrStatus("OCR tamamlandı (" + (result.provider || "google") + "). Tutar: " + amountText + ". Tarih: " + dateText + ".");
-      setOcrDebug("Okunan metin önizleme:\n" + (result.text || "").slice(0, 1600));
+      setOcrStatus("OCR tamamlandı (" + (result.provider || "google") + "). Tutar: " + amountText + ". Tarih: " + dateText + ". Metin uzunluğu: " + (result.textLength || 0));
+      setOcrDebug("Okunan metin önizleme:\n" + (result.text || "").slice(0, 2500));
     } catch (err) {
       console.error("OCR frontend error:", err);
       setOcrStatus("OCR bağlantı hatası: " + err.message);

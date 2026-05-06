@@ -113,3 +113,11 @@ Azure Image Analysis API `features=read` ile OCR sonucu döndürür.
 - Inline `onclick` bağımlılığı kaldırıldı.
 - Console'da `Modüler Masraf OCR v18.3 button fixed yüklendi` yazmalıdır.
 - Buton basılınca `OCR okunuyor...` durumuna geçer.
+
+
+## v18.4 Google OCR Restore
+
+- Google OCR tarafı çalışan v15 mantığına geri alındı.
+- Önce `DOCUMENT_TEXT_DETECTION`, boş dönerse `TEXT_DETECTION` denenir.
+- OCR metni boşsa artık `ok:true` dönmez; kullanıcıya net hata verir.
+- API cevabına `textLength`, `mimeType`, `fileSize` debug alanları eklendi.
