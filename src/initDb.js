@@ -2,7 +2,7 @@ require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const db = require('./db');
 
-function run() {
+function initDb() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS departments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -165,4 +165,8 @@ function run() {
   console.log('Database initialized. Admin:', adminEmail);
 }
 
-run();
+if (require.main === module) {
+  initDb();
+}
+
+module.exports = initDb;

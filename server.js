@@ -9,6 +9,8 @@ const multer = require('multer');
 const cron = require('node-cron');
 
 const db = require('./src/db');
+const initDb = require('./src/initDb');
+initDb();
 const audit = require('./src/audit');
 const { getRoles, requireLogin, requireRole, canAccessExpense } = require('./src/auth');
 const { monthDir, makeStoredName, ensureDir } = require('./src/storage');
