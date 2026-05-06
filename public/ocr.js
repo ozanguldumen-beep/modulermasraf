@@ -1,32 +1,22 @@
 
-function setFieldValue(selector, value) {
+function setFieldValue(selectors, value) {
   if (value === undefined || value === null || value === "") return;
-  const el = document.querySelector(selector);
-  if (!el) return;
-  el.value = String(value);
-  el.dispatchEvent(new Event("input", { bubbles: true }));
-  el.dispatchEvent(new Event("change", { bubbles: true }));
+  for (const selector of selectors) {
+    const el = document.querySelector(selector);
+    if (el) { el.value = value; return; }
+  }
 }
 
-function normalizeInputAmount(value) {
-  if (value === undefined || value === null || value === "") return "";
-  let v = String(value).trim().replace(/\s/g, "").replace(/\*/g, "");
-  if (v.includes(".") && v.includes(",")) return v.replace(/\./g, "").replace(",", ".");
-  if (v.includes(",")) return v.replace(",", ".");
-  return v;
-}
-
-function fillReceiptFields(result) {
-  const p = result.parsed || result;
-  setFieldValue('#company_name, input[name="company_name"]', p.company_name);
-  setFieldValue('#document_date, input[name="document_date"]', p.document_date || p.date);
-  setFieldValue('#document_number, input[name="document_number"]', p.document_number);
-  setFieldValue('#receipt_no, input[name="receipt_no"]', p.receipt_no);
-  setFieldValue('#subtotal, input[name="subtotal"]', normalizeInputAmount(p.subtotal));
-  setFieldValue('#vat_amount, input[name="vat_amount"]', normalizeInputAmount(p.vat_amount));
-  setFieldValue('#total_amount, input[name="total_amount"]', normalizeInputAmount(p.total_amount || p.amount));
-  setFieldValue('#amount, input[name="amount"]', normalizeInputAmount(p.amount || p.total_amount));
-  setFieldValue('#expense_date, input[name="expense_date"]', p.date || p.document_date);
+function fillSmartReceiptFields(result) {
+  if (!result) return;
+  setFieldValue(['#company_name','input[name="company_name"]'], result.company_name);
+  setFieldValue(['#document_date','input[name="document_date"]'], result.document_date || result.date);
+  setFieldValue(['#document_number','input[name="document_number"]'], result.document_number);
+  setFieldValue(['#receipt_no','input[name="receipt_no"]'], result.receipt_no);
+  setFieldValue(['#subtotal','input[name="subtotal"]'], result.subtotal);
+  setFieldValue(['#vat_amount','input[name="vat_amount"]'], result.vat_amount);
+  setFieldValue(['#amount','input[name="amount"]'], result.total_amount || result.amount);
+  setFieldValue(['#expense_date','input[name="expense_date"]'], result.date || result.document_date);
 }
 
 window.runOcrNow = async function(event) {
@@ -80,14 +70,14 @@ window.runOcrNow = async function(event) {
       return false;
     }
 
-    fillReceiptFields(result);
+    fillSmartReceiptFields(result);
+    if (result.amount && amountInput) amountInput.value = result.amount;
+    if (result.date && dateInput) dateInput.value = result.date;
 
-    const p = result.parsed || result;
     setOcrStatus(
       "OCR tamamlandı (" + result.provider + "). " +
-      ((p.total_amount || result.amount) ? "Toplam: " + (p.total_amount || result.amount) + ". " : "Toplam bulunamadı. ") +
-      ((p.document_date || result.date) ? "Tarih: " + (p.document_date || result.date) + ". " : "Tarih bulunamadı. ") +
-      (p.company_name ? "Firma: " + p.company_name + "." : "")
+      (result.amount ? "Tutar: " + result.amount + ". " : "Tutar bulunamadı. ") +
+      (result.date ? "Tarih: " + result.date + "." : "Tarih bulunamadı.")
     );
 
     setOcrDebug("Okunan metin önizleme:\n" + (result.text || "").slice(0, 800));
@@ -143,7 +133,7 @@ async function checkOcrConfig() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("Modüler Masraf OCR v18 yüklendi");
+  console.log("Modüler Masraf OCR v18.2 smart fields yüklendi");
 
   const fileInput = document.querySelector('#receipt, input[name="receipt"], input[type="file"]');
   let btn = document.getElementById("ocrBtn");

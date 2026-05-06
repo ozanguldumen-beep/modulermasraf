@@ -342,7 +342,7 @@ function layout(title, user, content) {
   return `<!doctype html>
 <html lang="tr"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title}</title><link rel="stylesheet" href="/public/style.css"><script src="/public/ocr.js?v=18" defer></script>
+<title>${title}</title><link rel="stylesheet" href="/public/style.css">
 </head><body>
 <header><div class="brand">Modüler Masraf</div>
 ${user ? `<nav>
@@ -403,28 +403,17 @@ function normalizeAmountValue(value) {
 
 function extractAmountFromText(text) {
   if (!text) return null;
-  const raw = normalizeReceiptText(text);
-  const cleaned = raw.replace(/\s+/g, " ");
-  const amountPattern = "(\*?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\*?\s*\d+[.,]\d{2})";
+  const cleaned = text.replace(/\s/g, " ");
 
-  const priorityRegex = new RegExp("(GENEL\s*TOPLAM|TOPLAM|TOTAL|ÖDENECEK|ODENECEK|KRED[İI]|NAK[İI]T|KART)[^0-9]{0,60}" + amountPattern, "i");
+  const priorityRegex = /(TOPLAM|TOTAL|GENEL TOPLAM|TUTAR|ÖDENECEK|ODENECEK|KREDI|KREDİ|NAKİT|NAKIT|KART)[^\d]{0,45}(\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\d+[.,]\d{2})/i;
   const priorityMatch = cleaned.match(priorityRegex);
-  if (priorityMatch && priorityMatch[2]) return normalizeAmountValue(priorityMatch[2].replace(/\*/g, ""));
+  if (priorityMatch && priorityMatch[2]) return normalizeAmountValue(priorityMatch[2]);
 
-  const lines = raw.split("\n").map(x => x.trim()).filter(Boolean);
-  for (let i = 0; i < lines.length; i++) {
-    if (/^(GENEL\s*)?TOPLAM|TOTAL|ÖDENECEK|ODENECEK|KRED[İI]|NAK[İI]T/i.test(lines[i])) {
-      const nearby = [lines[i], lines[i+1] || "", lines[i+2] || ""].join(" ");
-      const m = nearby.match(new RegExp(amountPattern, "i"));
-      if (m && m[1]) return normalizeAmountValue(m[1].replace(/\*/g, ""));
-    }
-  }
-
-  const matches = cleaned.match(/\*?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\*?\s*\d+[.,]\d{2}/g);
+  const matches = cleaned.match(/(\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\d+[.,]\d{2})/g);
   if (!matches || !matches.length) return null;
 
   const sorted = matches
-    .map(v => ({ raw: v, num: parseFloat(normalizeAmountValue(v.replace(/\*/g, ""))) }))
+    .map(v => ({ raw: v, num: parseFloat(normalizeAmountValue(v)) }))
     .filter(x => !isNaN(x.num) && x.num > 0)
     .sort((a, b) => b.num - a.num);
 
@@ -444,120 +433,76 @@ function extractDateFromText(text) {
   return `${year}-${month}-${day}`;
 }
 
-function normalizeReceiptText(text) {
-  return String(text || "").replace(/\r/g, "");
-}
 
-function toTrAmount(value) {
-  const normalized = normalizeAmountValue(value);
-  if (!normalized) return "";
-  return normalized.replace(".", ",");
-}
+function extractReceiptFieldsFromText(text) {
+  const lines = String(text || "").split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+  const joined = lines.join("\n");
 
-function extractAfterLabel(text, labels) {
-  const lines = normalizeReceiptText(text).split("\n").map(x => x.trim()).filter(Boolean);
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    for (const label of labels) {
-      const re = new RegExp(label + "\\s*[:：-]?\\s*(.*)$", "i");
-      const m = line.match(re);
-      if (m) {
-        const v = (m[1] || "").trim();
-        if (v) return v;
-        if (lines[i + 1]) return lines[i + 1].trim();
+  const result = {
+    company_name: "",
+    document_date: extractDateFromText(text) || "",
+    document_number: "",
+    receipt_no: "",
+    subtotal: "",
+    vat_amount: "",
+    total_amount: extractAmountFromText(text) || ""
+  };
+
+  const badCompany = /^(TAR[Iİ]H|SAAT|F[Iİ]Ş|FIS|TOPLAM|TOPKDV|KDV|KRED[Iİ]|NAK[Iİ]T|SATI[SŞ]|MERS[Iİ]S|EK[ÜU]|Z\s*NO|REF|ONAY|KART|POS|İŞYERİ|ISYERI|TERM[Iİ]NAL|VERG[Iİ]|VKN|TCKN|ADRES|TEL|NO|BELGE|QNB|AID|RRN)/i;
+  const companyPriority = lines.find(l =>
+    l.length >= 4 &&
+    /[A-ZÇĞİÖŞÜ]/.test(l) &&
+    !badCompany.test(l) &&
+    !/\d{1,2}[\.\/]\d{1,2}/.test(l) &&
+    /(LTD|ŞT[Iİ]|STI|A\.Ş|AŞ|AS|T[Iİ]C|DÜNYASI|MARKET|PETROL|REST|LOKUM|GIDA|OTOPARK|SANAY[Iİ]|TEKNOLOJ[Iİ]|ELEKTR[Iİ]K)/i.test(l)
+  );
+  result.company_name = companyPriority || lines.find(l => l.length >= 4 && /[A-ZÇĞİÖŞÜ]/.test(l) && !badCompany.test(l) && !/\d/.test(l.slice(0,4))) || "";
+
+  const receiptMatch = joined.match(/(?:F\s*[Iİ]Ş\s*NO|FIS\s*NO|FİŞNO|FISNO)\s*[:\-]?\s*([A-Z0-9\-\/]+)/i);
+  if (receiptMatch) result.receipt_no = receiptMatch[1];
+
+  const docMatch = joined.match(/(?:BELGE\s*NO|FATURA\s*NO|SER[Iİ]\s*NO|SIRA\s*NO|Z\s*NO|EK[ÜU]\s*NO|REF\s*NO)\s*[:\-]?\s*([A-Z0-9\-\/]+)/i);
+  if (docMatch) result.document_number = docMatch[1];
+
+  function lineMoney(pattern) {
+    for (let i = 0; i < lines.length; i++) {
+      if (pattern.test(lines[i])) {
+        const same = lines[i].match(/(\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\d+[.,]\d{2})/g);
+        if (same && same.length) return same[same.length - 1];
+        for (let j = i + 1; j <= Math.min(i + 3, lines.length - 1); j++) {
+          const next = lines[j].match(/(\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\d+[.,]\d{2})/g);
+          if (next && next.length) return next[next.length - 1];
+        }
       }
     }
+    return "";
   }
-  return "";
+
+  const vatRaw = lineMoney(/TOP\s*KDV|TOPKDV|KDV\s*TUTARI|KDV/i);
+  result.vat_amount = normalizeAmountValue(vatRaw);
+
+  const totalRaw = lineMoney(/GENEL\s*TOPLAM|TOPLAM|ÖDENECEK|ODENECEK|KRED[Iİ]|NAK[Iİ]T|SATI[SŞ]/i);
+  if (totalRaw) result.total_amount = normalizeAmountValue(totalRaw);
+
+  const subtotalRaw = lineMoney(/MATRAH|VERG[Iİ]\s*MATRAH|ARA\s*TOPLAM|KDV\s*HAR[Iİ]Ç|KDVS[Iİ]Z/i);
+  result.subtotal = normalizeAmountValue(subtotalRaw);
+  if (!result.subtotal && result.total_amount && result.vat_amount) {
+    const sub = Number(result.total_amount) - Number(result.vat_amount);
+    if (Number.isFinite(sub)) result.subtotal = sub.toFixed(2);
+  }
+
+  return result;
 }
 
-function extractReceiptNo(text) {
-  const t = normalizeReceiptText(text);
-  const patterns = [
-    /F[İI]Ş\s*NO\s*[:：-]?\s*([A-Z0-9\/-]+)/i,
-    /FIS\s*NO\s*[:：-]?\s*([A-Z0-9\/-]+)/i,
-    /FİŞNO\s*[:：-]?\s*([A-Z0-9\/-]+)/i,
-    /BELGE\s*NO\s*[:：-]?\s*([A-Z0-9\/-]+)/i,
-    /Z\s*NO\s*[:：-]?\s*([A-Z0-9\/-]+)/i
-  ];
-  for (const p of patterns) {
-    const m = t.match(p);
-    if (m && m[1]) return m[1].replace(/^0+(?=\d)/, '') || m[1];
-  }
-  return "";
-}
-
-function extractVatAmount(text) {
-  const raw = normalizeReceiptText(text);
-  const t = raw.replace(/\s+/g, " ");
-  const amountPattern = "(\*?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\*?\s*\d+[.,]\d{2})";
-  const patterns = [
-    new RegExp("TOP\s*KDV[^0-9]{0,30}" + amountPattern, "i"),
-    new RegExp("KDV\s*TOPLAMI[^0-9]{0,30}" + amountPattern, "i"),
-    new RegExp("KDV[^0-9]{0,30}" + amountPattern, "i")
-  ];
-  for (const p of patterns) {
-    const m = t.match(p);
-    if (m && m[1]) return normalizeAmountValue(m[1].replace(/\*/g, ""));
-  }
-  const lines = raw.split("\n").map(x => x.trim()).filter(Boolean);
-  for (let i = 0; i < lines.length; i++) {
-    if (/TOP\s*KDV|KDV\s*TOPLAMI|KDV/i.test(lines[i])) {
-      const nearby = [lines[i], lines[i+1] || ""].join(" ");
-      const m = nearby.match(new RegExp(amountPattern, "i"));
-      if (m && m[1]) return normalizeAmountValue(m[1].replace(/\*/g, ""));
-    }
-  }
-  return "";
-}
-
-function extractCompanyName(text) {
-  const lines = normalizeReceiptText(text).split("\n").map(x => x.trim()).filter(Boolean);
-  const bad = /^(TAR[İI]H|SAAT|F[İI]Ş|FIS|TOPLAM|TOPKDV|KDV|KRED[İI]|NAK[İI]T|SATIŞ|SATIS|MERS[İI]S|EK[ÜU]|Z\s*NO|ISYERI|TERMINAL|REF|ONAY|AID|RRN|KART|BU BELGE|QNB|DB|->|\*+)/i;
-  const candidates = [];
-  for (const line of lines.slice(0, 18)) {
-    if (bad.test(line)) continue;
-    if (/cad|sok|mah|no:|ankara|istanbul|aksaray|köy|koyu|cd\./i.test(line)) continue;
-    if (/\d{2}[./-]\d{2}[./-]\d{2,4}/.test(line)) continue;
-    if (line.length < 4) continue;
-    if (/^[A-ZÇĞİÖŞÜ0-9 .&'-]+$/.test(line.toUpperCase())) candidates.push(line);
-  }
-  const company = candidates.find(x => /LTD|ŞT[İI]|ST[İI]|A\.Ş|AS\b|T[İI]C|DÜNYASI|OTOPARK|MARKET|PETROL/i.test(x)) || candidates[0] || "";
-  return company;
-}
-
-function parseReceiptFields(text) {
-  const amount = extractAmountFromText(text) || "";
-  const date = extractDateFromText(text) || "";
-  const vat = extractVatAmount(text) || "";
-  let subtotal = "";
-  if (amount && vat) {
-    const a = parseFloat(amount);
-    const v = parseFloat(vat);
-    if (!isNaN(a) && !isNaN(v)) subtotal = (a - v).toFixed(2);
-  }
-  const receiptNo = extractReceiptNo(text);
-  const documentNo = extractAfterLabel(text, ["BELGE\\s*NO", "FATURA\\s*NO", "SER[İI]\\s*NO", "REF\\s*NO"]);
-  return {
-    company_name: extractCompanyName(text),
-    document_date: date,
-    document_number: documentNo || receiptNo,
-    receipt_no: receiptNo,
-    subtotal,
-    vat_amount: vat,
-    total_amount: amount,
-    amount,
-    date
-  };
-}
-
-async function callGoogleVision(fileBuffer, featureType) {
+async function runGoogleVisionOCR(fileBuffer) {
   const apiKey = process.env.GOOGLE_VISION_API_KEY;
+  if (!apiKey) throw new Error("GOOGLE_VISION_API_KEY tanımlı değil.");
+
   const body = {
     requests: [
       {
         image: { content: fileBuffer.toString("base64") },
-        features: [{ type: featureType }],
+        features: [{ type: "TEXT_DETECTION" }],
         imageContext: { languageHints: ["tr", "en"] }
       }
     ]
@@ -577,21 +522,6 @@ async function callGoogleVision(fileBuffer, featureType) {
   return data.responses?.[0]?.fullTextAnnotation?.text ||
          data.responses?.[0]?.textAnnotations?.[0]?.description ||
          "";
-}
-
-async function runGoogleVisionOCR(fileBuffer) {
-  const apiKey = process.env.GOOGLE_VISION_API_KEY;
-  if (!apiKey) throw new Error("GOOGLE_VISION_API_KEY tanımlı değil.");
-
-  // v15/v16 çalışan mantık: önce TEXT_DETECTION denenir.
-  let text = await callGoogleVision(fileBuffer, "TEXT_DETECTION");
-
-  // Boş dönerse belge/fiş modu ikinci deneme olarak çalışır.
-  if (!text || !text.trim()) {
-    text = await callGoogleVision(fileBuffer, "DOCUMENT_TEXT_DETECTION");
-  }
-
-  return text || "";
 }
 
 async function runAzureVisionOCR(fileBuffer, mimeType) {
@@ -652,26 +582,15 @@ app.post("/api/ocr", requireLogin, ocrUpload.single("receipt"), async (req, res)
     if (!req.file) return res.status(400).json({ ok: false, error: "Fiş dosyası gelmedi." });
 
     const text = await runProfessionalOCR(req.file.buffer, req.file.mimetype);
-    if (!text || !text.trim()) {
-      return res.status(422).json({
-        ok: false,
-        error: "Google OCR görselden metin okuyamadı. Fotoğrafı JPG/PNG olarak, daha net ve dik açıyla tekrar yükleyin.",
-        provider: (process.env.OCR_PROVIDER || "google").toLowerCase(),
-        text: ""
-      });
-    }
-
-    const parsed = parseReceiptFields(text);
+    const fields = extractReceiptFieldsFromText(text);
 
     res.json({
       ok: true,
       provider: (process.env.OCR_PROVIDER || "google").toLowerCase(),
-      ...parsed,
-      amount: parsed.total_amount || parsed.amount || "",
-      date: parsed.document_date || parsed.date || "",
-      parsed,
-      text: text.substring(0, 3000),
-      textLength: text.length
+      amount: fields.total_amount,
+      date: fields.document_date,
+      ...fields,
+      text: text.substring(0, 3000)
     });
   } catch (err) {
     console.error("OCR error:", err);
@@ -745,17 +664,16 @@ app.get("/expenses/new", requireLogin, (req, res) => {
           <option>Kargo</option><option>Genel Harcama</option><option>Demirbaş</option><option>Diğer</option>
         </select>
         <div class="grid">
-          <div><label>Firma Ünvanı</label><input name="company_name" id="company_name" placeholder="OCR ile otomatik dolar"></div>
+          <div><label>Firma Ünvanı</label><input name="company_name" id="company_name"></div>
           <div><label>Belge Tarihi</label><input name="document_date" id="document_date" type="date"></div>
           <div><label>Belge Numarası</label><input name="document_number" id="document_number"></div>
           <div><label>Fiş No</label><input name="receipt_no" id="receipt_no"></div>
           <div><label>Vergi Matrahı</label><input name="subtotal" id="subtotal" type="number" step="0.01"></div>
           <div><label>KDV Tutarı</label><input name="vat_amount" id="vat_amount" type="number" step="0.01"></div>
-          <div><label>Toplam Tutar</label><input name="total_amount" id="total_amount" type="number" step="0.01"></div>
+          <div><label>Toplam Tutar</label><input name="amount" id="amount" type="number" step="0.01" required></div>
+          <div><label>Para Birimi</label><select name="currency"><option>TRY</option><option>USD</option><option>EUR</option></select></div>
+          <div><label>Masraf Tarihi</label><input name="expense_date" id="expense_date" type="date" required></div>
         </div>
-        <label>Tutar</label><input name="amount" id="amount" type="number" step="0.01" required>
-        <label>Para Birimi</label><select name="currency"><option>TRY</option><option>USD</option><option>EUR</option></select>
-        <label>Masraf Tarihi</label><input name="expense_date" id="expense_date" type="date" required>
         <label>Açıklama</label><textarea name="description"></textarea>
         <label>Fiş / Fatura Görseli</label><p class="muted">Fotoğraf seçince profesyonel OCR ile tutar ve tarih otomatik okunmaya çalışır. Göndermeden önce kontrol et.</p>
         <input name="receipt" id="receipt" type="file" accept="image/*,.pdf">
@@ -771,7 +689,7 @@ app.get("/expenses/new", requireLogin, (req, res) => {
 app.post("/expenses", requireLogin, upload.single("receipt"), (req, res) => {
   const db = loadDb();
   const user = db.users.find(u => u.id === req.session.user.id);
-  const { expense_type, amount, currency, expense_date, description, company_name, document_date, document_number, receipt_no, subtotal, vat_amount, total_amount } = req.body;
+  const { expense_type, amount, currency, expense_date, description, company_name, document_date, document_number, receipt_no, subtotal, vat_amount } = req.body;
   db.expenses.push({
     id: db.counters.expenses++,
     user_id: user.id,
@@ -780,14 +698,13 @@ app.post("/expenses", requireLogin, upload.single("receipt"), (req, res) => {
     amount: Number(amount),
     currency: currency || "TRY",
     expense_date,
-    description: description || "",
     company_name: company_name || "",
     document_date: document_date || "",
     document_number: document_number || "",
     receipt_no: receipt_no || "",
     subtotal: subtotal ? Number(subtotal) : null,
     vat_amount: vat_amount ? Number(vat_amount) : null,
-    total_amount: total_amount ? Number(total_amount) : (amount ? Number(amount) : null),
+    description: description || "",
     receipt_path: req.file ? "/uploads/" + req.file.filename : "",
     status: user.role === "sales_responsible" || user.role === "salesperson" ? "sales_manager_approval" : "sales_director_approval",
     created_at: new Date().toISOString(),
@@ -836,8 +753,14 @@ app.get("/expenses/:id", requireLogin, (req, res) => {
       <h1>Masraf #${exp.id}</h1>
       <p><b>Personel:</b> ${owner.name || "-"}</p>
       <p><b>Tür:</b> ${exp.expense_type}</p>
-      <p><b>Tutar:</b> ${exp.amount} ${exp.currency}</p>
-      <p><b>Tarih:</b> ${exp.expense_date}</p>
+      <p><b>Firma Ünvanı:</b> ${exp.company_name || "-"}</p>
+      <p><b>Belge Tarihi:</b> ${exp.document_date || exp.expense_date || "-"}</p>
+      <p><b>Belge Numarası:</b> ${exp.document_number || "-"}</p>
+      <p><b>Fiş No:</b> ${exp.receipt_no || "-"}</p>
+      <p><b>Vergi Matrahı:</b> ${exp.subtotal ?? "-"}</p>
+      <p><b>KDV Tutarı:</b> ${exp.vat_amount ?? "-"}</p>
+      <p><b>Toplam Tutar:</b> ${exp.amount} ${exp.currency}</p>
+      <p><b>Masraf Tarihi:</b> ${exp.expense_date}</p>
       <p><b>Durum:</b> <span class="badge">${statusLabel(exp.status)}</span></p>
       <p><b>Açıklama:</b><br>${exp.description || "-"}</p>
       ${exp.receipt_path ? `<p><a class="buttonlink" href="${exp.receipt_path}" target="_blank">Fişi Aç</a></p>` : ""}
@@ -938,10 +861,10 @@ app.get("/reports", requireLogin, requireRole(["accounting_manager","accounting_
 
 app.get("/export/expenses.csv", requireLogin, requireRole(["accounting_manager","accounting_staff","finance_manager","finance","admin"]), (req, res) => {
   const db = loadDb();
-  const rows = [["ID","Personel","Masraf Türü","Tutar","Para Birimi","Tarih","Firma Ünvanı","Belge Tarihi","Belge Numarası","Fiş No","Vergi Matrahı","KDV Tutarı","Toplam Tutar","Durum","Açıklama","IBAN"]];
+  const rows = [["ID","Personel","Masraf Türü","Tutar","Para Birimi","Tarih","Durum","Açıklama","IBAN"]];
   db.expenses.forEach(e => {
     const u = db.users.find(x => x.id === e.user_id) || {};
-    rows.push([e.id, u.name || "", e.expense_type, e.amount, e.currency, e.expense_date, e.company_name || "", e.document_date || "", e.document_number || "", e.receipt_no || "", e.subtotal ?? "", e.vat_amount ?? "", e.total_amount ?? "", statusLabel(e.status), e.description || "", u.iban || ""]);
+    rows.push([e.id, u.name || "", e.expense_type, e.amount, e.currency, e.expense_date, statusLabel(e.status), e.description || "", u.iban || ""]);
   });
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
   res.setHeader("Content-Disposition", "attachment; filename=masraflar.csv");
