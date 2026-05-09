@@ -1,0 +1,22 @@
+{
+  "name": "moduler-masraf-v18-9-fisno-visible-clean",
+  "version": "18.9.0",
+  "description": "Modüler Masraf v5 - değiştirilebilir şirket rolleri ve yeni onay akışı",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-session": "^1.18.1",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.16",
+    "sharp": "^0.33.5",
+    "heic-convert": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
