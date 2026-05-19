@@ -1,14 +1,15 @@
 {
   "name": "moduler-masraf-v19",
-  "version": "19.0.0",
+  "version": "19.2.0",
   "description": "Modüler Masraf Sistemi v19 - OCR, dinamik onay, risk motoru, finans ve mobil arayüz",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
+    "start": "node scripts/start.js",
     "dev": "nodemon src/server.js",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "app:start": "node src/server.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

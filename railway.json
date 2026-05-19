@@ -1,8 +1,4 @@
 {
-  "build": {
-    "builder": "RAILPACK"
-  },
-  "deploy": {
-    "startCommand": "npx prisma generate && npx prisma db push --accept-data-loss && node prisma/seed.js && node src/server.js"
-  }
+  "build": { "builder": "RAILPACK" },
+  "deploy": { "startCommand": "npm start" }
 }
