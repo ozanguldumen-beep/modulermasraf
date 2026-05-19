@@ -1,4 +1,4 @@
-# Modüler Masraf Sistemi v18.9 Rollback
+# Modüler Masraf Sistemi v18.10 Rollback
 
 Bu paket v19/PostgreSQL denemesi sonrası çalışan OCR hattına geri dönüş içindir.
 
@@ -27,4 +27,4 @@ ozan@modulerotomasyon.com
 ```
 
 ## Önemli
-Bu sürümde PostgreSQL/Prisma yoktur. Amaç çalışan v18.9 OCR yapısına geri dönmektir.
+Bu sürümde PostgreSQL/Prisma yoktur. Amaç çalışan v18.10 OCR yapısına geri dönmektir.
