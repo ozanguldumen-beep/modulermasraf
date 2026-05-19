@@ -1,0 +1,6 @@
+const express=require('express'); const bcrypt=require('bcryptjs'); const prisma=require('../lib/prisma'); const {layout,esc}=require('../views/layout'); const router=express.Router();
+router.get('/login',(req,res)=>res.send(layout(req,'Giriş',`<section class="card small"><h1>Giriş</h1><form method="post"><label>E-posta</label><input name="email" type="email" required><label>Şifre</label><input name="password" type="password" required><button>Giriş Yap</button></form><p class="muted">Varsayılan: ozan@modulerotomasyon.com / 123456</p></section>`)));
+router.post('/login',async(req,res)=>{ const u=await prisma.user.findUnique({where:{email:req.body.email}}); if(!u||!u.active||!await bcrypt.compare(req.body.password,u.passwordHash)) return res.send(layout(req,'Hata','<div class="card small"><h2>Giriş hatalı</h2><a class="buttonlink" href="/login">Tekrar dene</a></div>')); req.session.user={id:u.id,name:u.name,email:u.email,role:u.role}; res.redirect('/'); });
+router.get('/logout',(req,res)=>req.session.destroy(()=>res.redirect('/login')));
+router.get('/profile',(req,res)=>res.send(layout(req,'Profil',`<div class="card"><h1>${esc(req.session.user.name)}</h1><p><b>Rol:</b> ${esc(req.session.user.role)}</p></div>`)));
+module.exports=router;

@@ -1,20 +1,32 @@
 {
-  "name": "moduler-masraf-v18-9-fisno-visible-clean",
-  "version": "18.9.0",
-  "description": "Modüler Masraf v5 - değiştirilebilir şirket rolleri ve yeni onay akışı",
-  "main": "server.js",
+  "name": "moduler-masraf-v19",
+  "version": "19.0.0",
+  "description": "Modüler Masraf Sistemi v19 - OCR, dinamik onay, risk motoru, finans ve mobil arayüz",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "db:push": "prisma db push",
+    "db:seed": "node prisma/seed.js",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@prisma/client": "^5.22.0",
     "bcryptjs": "^2.4.3",
+    "connect-pg-simple": "^10.0.0",
     "dotenv": "^16.4.7",
+    "exceljs": "^4.4.0",
     "express": "^4.21.2",
     "express-session": "^1.18.1",
+    "heic-convert": "^2.1.0",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.16",
-    "sharp": "^0.33.5",
-    "heic-convert": "^2.1.0"
+    "pg": "^8.13.1",
+    "prisma": "^5.22.0",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
   },
   "engines": {
     "node": ">=20"

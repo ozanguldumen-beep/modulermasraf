@@ -1,8 +1,4 @@
 {
-  "build": {
-    "builder": "RAILPACK"
-  },
-  "deploy": {
-    "startCommand": "npm start"
-  }
+  "build": { "builder": "RAILPACK" },
+  "deploy": { "startCommand": "npm start" }
 }

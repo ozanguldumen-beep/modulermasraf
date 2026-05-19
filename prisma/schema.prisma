@@ -1,0 +1,189 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PERSONEL
+  MANAGER
+  ACCOUNTING
+  FINANCE
+  PARTNER
+  ADMIN
+  PROCESS_MANAGER
+}
+
+enum ExpenseStatus {
+  DRAFT
+  PENDING_APPROVAL
+  PENDING_ACCOUNTING
+  PENDING_FINANCE
+  PAYMENT_WAITING
+  PAID
+  REJECTED
+  BLOCKED
+  NEEDS_INFO
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  CRITICAL
+}
+
+enum RuleAction {
+  INFO
+  WARNING
+  REQUIRE_EXPLANATION
+  ADD_APPROVAL
+  BLOCK
+}
+
+enum PaymentMethod {
+  CASH
+  PERSONAL_CARD
+  COMPANY_CARD
+  ADVANCE
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         Role      @default(PERSONEL)
+  title        String?
+  department   String?
+  managerId    Int?
+  manager      User?     @relation("ManagerUsers", fields: [managerId], references: [id])
+  teamMembers  User[]    @relation("ManagerUsers")
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  expenses     Expense[] @relation("ExpenseOwner")
+  approvals    ApprovalStep[]
+  logs         AuditLog[]
+  comments     Comment[]
+}
+
+model Expense {
+  id              Int             @id @default(autoincrement())
+  ownerId         Int
+  owner           User            @relation("ExpenseOwner", fields: [ownerId], references: [id])
+  expenseType     String
+  expenseDate     DateTime?
+  companyName     String?
+  documentDate    DateTime?
+  documentNo      String?
+  receiptNo       String?
+  taxBase         Decimal?        @db.Decimal(12, 2)
+  vatAmount       Decimal?        @db.Decimal(12, 2)
+  totalAmount     Decimal         @db.Decimal(12, 2)
+  paymentMethod   PaymentMethod   @default(PERSONAL_CARD)
+  customerName    String?
+  vehiclePlate    String?
+  description     String?
+  filePath        String?
+  fileName        String?
+  ocrText         String?
+  ocrDebug        Json?
+  riskScore       Int             @default(0)
+  riskLevel       RiskLevel       @default(LOW)
+  status          ExpenseStatus   @default(PENDING_APPROVAL)
+  locked          Boolean         @default(false)
+  paidAt          DateTime?
+  paidById        Int?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  approvalSteps   ApprovalStep[]
+  riskFindings    RiskFinding[]
+  comments        Comment[]
+  logs            AuditLog[]
+}
+
+model ApprovalStep {
+  id          Int      @id @default(autoincrement())
+  expenseId   Int
+  expense     Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  approverId  Int
+  approver    User     @relation(fields: [approverId], references: [id])
+  label       String
+  stepOrder   Int
+  status      String   @default("PENDING")
+  note        String?
+  actedAt     DateTime?
+  createdAt   DateTime @default(now())
+}
+
+model RiskRule {
+  id               Int        @id @default(autoincrement())
+  code             String     @unique
+  name             String
+  enabled          Boolean    @default(true)
+  testMode         Boolean    @default(false)
+  expenseType      String?
+  periodDays       Int?
+  countLimit       Int?
+  amountLimit      Decimal?   @db.Decimal(12, 2)
+  percentTolerance Int?
+  riskLevel        RiskLevel  @default(MEDIUM)
+  action           RuleAction @default(WARNING)
+  extraApproverRole Role?
+  requireNote      Boolean    @default(false)
+  config           Json?
+  updatedAt        DateTime   @updatedAt
+}
+
+model RiskFinding {
+  id          Int       @id @default(autoincrement())
+  expenseId   Int
+  expense     Expense   @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  ruleCode    String
+  title       String
+  message     String
+  riskLevel   RiskLevel
+  action      RuleAction
+  createdAt   DateTime  @default(now())
+}
+
+model ApprovalFlow {
+  id          Int      @id @default(autoincrement())
+  name        String
+  enabled     Boolean  @default(true)
+  expenseType String?
+  minAmount   Decimal? @db.Decimal(12, 2)
+  maxAmount   Decimal? @db.Decimal(12, 2)
+  steps       Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  expenseId Int
+  expense   Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id])
+  expenseId Int?
+  expense   Expense? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  action    String
+  detail    Json?
+  createdAt DateTime @default(now())
+}

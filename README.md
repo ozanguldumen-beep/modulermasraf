@@ -1,174 +1,63 @@
-# Modüler Masraf v5
+# Modüler Masraf Sistemi v19
 
-Bu sürümde:
+Mobil uyumlu Node.js + Express + PostgreSQL + Prisma tabanlı masraf sistemi.
 
-- Şirket Rolü alanı ayrı hale getirildi ve admin tarafından değiştirilebilir.
-- Satış Yöneticisi / Satış Sorumlusu ayrımı eklendi.
-- Onay akışı güncellendi: Satış Sorumlusu -> Satış Yöneticisi -> Satış Müdürü -> Muhasebe Müdürü -> Finans Müdürü -> Muhasebe Ödeme Listesi.
-- Celal Eşli: Finans Müdürü / Şirket Ortağı, tam görünürlük. Sil/Pasife Al butonu yok.
-- Ozan Güldümen: Satış Müdürü / Şirket Ortağı, tam görünürlük.
-- Yetkilisi listesindeki seçenekler genişletildi: Ozan, Ferhat, Seren, Celal ve gelecekte eklenecek Satış Yöneticileri görünebilir.
-- Sil butonu yerine güvenli Pasife Al bağlantısı eklendi. Geçmiş masraflar bozulmaz.
+## İçerik
 
-Varsayılan şifre: 123456
+- Google Vision OCR
+- HEIC/JPEG görsel hazırlama
+- Fiş sağlık kontrolü
+- Risk motoru
+- Dinamik onay akışı
+- Yönetici paneli
+- Finans ödeme listesi
+- Excel export
+- Yorum sistemi
+- Audit log
+- Mobil alt menü
 
-
-## v6 Silme Fix
-
-- Destek Mail seed datasından tamamen kaldırıldı.
-- Mevcut data/db.json içinde destek@akuvoxinterkom.com varsa uygulama açılırken temizlenir.
-- Ozan Güldümen ve Celal Eşli kritik kullanıcı olarak korunur; Sil butonu görünmez.
-- Diğer kullanıcılar için Sil çalışır:
-  - Masraf geçmişi yoksa fiziksel siler.
-  - Masraf geçmişi varsa geçmiş bozulmasın diye pasife alır.
-
-
-## v7 Müdür Listesi + OCR
-
-- Bağlı olduğu müdür listesi artık sadece Ozan/Ferhat değil:
-  Satış Müdürü, Teknik Müdür, Muhasebe Müdürü, Finans ve Admin rollerindeki aktif kullanıcılar gelir.
-- Masraf eklerken fiş/fatura fotoğrafı seçildiğinde tarayıcı içinde OCR çalışır.
-- OCR tutarı ve tarihi otomatik doldurmaya çalışır.
-- OCR ücretsizdir, dış API maliyeti yoktur.
-
-
-## v8 Profesyonel OCR
-
-Bu sürümde tarayıcı içi OCR kaldırıldı. Fiş görseli sunucuya gider, sunucu Google Vision veya Azure Vision ile okur.
-
-### Google Vision Kurulumu
-
-Railway Variables içine ekle:
+## Railway Variables
 
 ```text
+DATABASE_URL=Railway PostgreSQL URL
+SESSION_SECRET=uzun-gizli-key
 OCR_PROVIDER=google
-GOOGLE_VISION_API_KEY=BURAYA_GOOGLE_API_KEY
+GOOGLE_VISION_API_KEY=Google Vision API Key
+UPLOAD_DIR=uploads
 ```
 
-Google Cloud Vision API görsel verisini Base64 içerik olarak alabilir ve OCR yapabilir.
+## Kurulum
 
-### Azure Vision Kurulumu
-
-Railway Variables içine ekle:
-
-```text
-OCR_PROVIDER=azure
-AZURE_VISION_ENDPOINT=https://xxx.cognitiveservices.azure.com
-AZURE_VISION_KEY=BURAYA_AZURE_KEY
+```bash
+npm install
+npx prisma db push
+npm run db:seed
+npm start
 ```
 
-Azure Image Analysis API `features=read` ile OCR sonucu döndürür.
+## Varsayılan Kullanıcılar
 
-### Not
+Şifre: `123456`
 
-- API key eklenmezse OCR hata verir ama masrafı elle girmeye devam edebilirsin.
-- Tutar ve tarih otomatik doldurulur; kullanıcı göndermeden önce kontrol etmelidir.
+- ozan@modulerotomasyon.com / PARTNER
+- celal@modulerotomasyon.com / PARTNER
+- seren@modulerotomasyon.com / ACCOUNTING
+- ferhat@modulerotomasyon.com / MANAGER
+- personel@modulerotomasyon.com / PERSONEL
 
+## Railway Deploy
 
-## v9 OCR Fix
+1. ZIP içeriğini GitHub reposuna yükleyin.
+2. Railway'de PostgreSQL ekleyin.
+3. DATABASE_URL otomatik gelmezse Variables içine ekleyin.
+4. `GOOGLE_VISION_API_KEY` ekleyin.
+5. İlk deploy sonrası Railway console veya local terminalden:
 
-- OCR JavaScript bağlantısı sağlamlaştırıldı.
-- Masraf ekleme ekranında OCR durum kutusu görünür.
-- Fotoğraf seçilince direkt `/api/ocr` çağrılır.
-- `/api/ocr-status` ile Railway OCR variable kontrolü eklenmiştir.
+```bash
+npx prisma db push
+npm run db:seed
+```
 
+## Notlar
 
-## v10 OCR Button
-
-- Otomatik change event yerine sağlam bir "Fişi Oku" butonu eklendi.
-- Fiş seçildikten sonra kullanıcı butona basar.
-- Buton `/api/ocr` endpointine dosyayı upload eder.
-- Sonuç gelirse tutar ve tarih otomatik doldurulur.
-
-
-## v11 OCR Buton Fix
-
-- OCR butonu `onclick="runOcrNow(event)"` ile doğrudan bağlandı.
-- Buton type=button olarak sabitlendi, formu submit etmez.
-- JavaScript yüklenince console'da `Modüler Masraf OCR v11 yüklendi` yazar.
-- API key kontrolü `/api/ocr-status` üzerinden yapılır.
-
-
-## v12 Temiz OCR Paketi
-
-- `window.runOcrNow` dosyanın en başında global tanımlıdır.
-- Buton `onclick="window.runOcrNow(event)"` ile çalışır.
-- JS cache kırmak için `/public/ocr.js?v=12` kullanılır.
-- OCR debug alanı eklenmiştir.
-- Console'da `Modüler Masraf OCR v12 yüklendi` yazmalıdır.
-
-
-## v18.2 Smart Fields Minimal Fix
-
-- Orijinal çalışan v12/v18 sistem korunmuştur.
-- Sadece masraf ekranına Firma Ünvanı, Belge Tarihi, Belge Numarası, Fiş No, Vergi Matrahı, KDV Tutarı, Toplam Tutar alanları eklenmiştir.
-- OCR endpoint aynı Google Vision TEXT_DETECTION mantığını kullanır.
-- `public/ocr.js` yeni alanları doldurur.
-
-
-## v18.3 OCR Buton Fix
-
-- `layout()` içine `/public/ocr.js?v=183` script bağlantısı eklendi.
-- Fiş Oku butonu `addEventListener` ile doğrudan bağlandı.
-- Inline `onclick` bağımlılığı kaldırıldı.
-- Console'da `Modüler Masraf OCR v18.3 button fixed yüklendi` yazmalıdır.
-- Buton basılınca `OCR okunuyor...` durumuna geçer.
-
-
-## v18.4 Google OCR Restore
-
-- Google OCR tarafı çalışan v15 mantığına geri alındı.
-- Önce `DOCUMENT_TEXT_DETECTION`, boş dönerse `TEXT_DETECTION` denenir.
-- OCR metni boşsa artık `ok:true` dönmez; kullanıcıya net hata verir.
-- API cevabına `textLength`, `mimeType`, `fileSize` debug alanları eklendi.
-
-
-## v18.5 HEIC / Bad Image Data Fix
-
-- OCR butonu dosyayı Google'a göndermeden önce tarayıcıda JPEG'e çevirmeye çalışır.
-- iPhone HEIC/HEIF kaynaklı `Bad image data` hatasını azaltır.
-- Görsel uzun kenarı 1800px'e düşürülür ve JPEG kalite 0.88 ile gönderilir.
-- Google tarafında `Bad image data` dönerse kullanıcıya daha anlaşılır hata verilir.
-
-Not: Tarayıcı HEIC dosyasını decode edemiyorsa iPhone Kamera > Formatlar > En Uyumlu seçilip JPG çekilmelidir.
-
-
-## v18.6 HEIC Server + UI Fix
-
-- Server tarafında HEIC/HEIF dosyalar `heic-convert` ile JPEG'e çevrilir.
-- Tüm görseller `sharp` ile 1800px içinde optimize JPEG'e dönüştürülür ve Google Vision'a bu şekilde gönderilir.
-- Masraf Türü alanı, Masraf Tarihi satırının yanına taşındı.
-- Masraf türlerine Araç Yıkama, Uçak Bileti, Taksi, Kargo/Kurye, Ofis Gideri, Temsil/Ağırlama eklendi.
-- Fiş No alanı ekrandan kaldırıldı.
-- OCR'da Fiş No bulunursa Belge Numarası alanına yazılır.
-
-
-## v18.7 HEIC Server Convert Kesin Fix
-
-- `sharp` ve `heic-convert` importları kesin olarak eklendi.
-- HEIC/HEIF algılanırsa Google Vision'a gitmeden önce server tarafında JPEG'e çevrilir.
-- Tüm görseller `sharp` ile yeniden JPEG üretilerek Google Vision'a gönderilir.
-- `/api/version` endpoint'i eklendi: version 18.7.0 dönmelidir.
-- Railway loglarında `HEIC/HEIF algılandı` ve `Google Vision için JPEG hazırlandı` mesajları görünmelidir.
-
-Önemli:
-Railway deploy sonrası eski build cache çalışıyorsa Redeploy/Restart yapın.
-
-
-## v18.8 Layout + Fiş No Fix
-
-- Üstte kalan fazla Masraf Türü alanı kaldırıldı.
-- Masraf Türü sadece Masraf Tarihi yanında kalacak şekilde düzenlendi.
-- Fiş No alanı geri eklendi.
-- Belge Numarası artık Saat / EKÜ / Z No gibi teknik satırlardan doldurulmaz.
-- OCR'da Fiş No ayrı alana yazılır.
-- Form kutuları 4 kolon simetrik grid olarak düzenlendi.
-
-
-## v18.9 Fiş No Görünür + Temiz Layout
-
-- Fiş No kutusu Belge Numarası'nın yanına kesin eklendi.
-- Üstte tek başına duran eski Masraf Türü kaldırıldı.
-- Masraf Türü sadece alttaki düzenli grid içinde kalır.
-- Fiş No ayrı OCR alanı olarak doldurulur.
-- Belge No, Fiş No ile karıştırılmaz.
+Bu v19 paketinde tüm temel mimari tek seferde kuruldu. Risk kural limitleri DB'de tutulur. Yönetici panelinde aç/kapat vardır; limit düzenleme ekranı sonraki küçük geliştirme olarak genişletilebilir.
