@@ -1,0 +1,9 @@
+{
+  "users": [
+    {"id":"u1","name":"Ozan Güldümen","email":"ozan@modulerotomasyon.com","password":"123456","roles":["Şirket Ortağı","Satış Müdürü","Sistem Yöneticisi"],"active":true},
+    {"id":"u2","name":"Celal Eşli","email":"celal@modulerotomasyon.com","password":"123456","roles":["Şirket Ortağı","Finans Müdürü"],"active":true},
+    {"id":"u3","name":"Seren Sarıkaya","email":"seren@modulerotomasyon.com","password":"123456","roles":["Muhasebe Müdürü"],"active":true},
+    {"id":"u4","name":"Ferhat Halis Polat","email":"ferhat@modulerotomasyon.com","password":"123456","roles":["Teknik Müdür"],"active":true}
+  ],
+  "expenses": []
+}

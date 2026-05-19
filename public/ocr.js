@@ -1,3 +1,34 @@
-console.log('Modüler Masraf OCR v19 yüklendi');
-function setVal(id,v){ const el=document.getElementById(id); if(el && v!==undefined && v!==null && v!=='') el.value=v; }
-window.addEventListener('DOMContentLoaded',()=>{ const btn=document.getElementById('ocrButton'); const file=document.getElementById('receiptFile'); const status=document.getElementById('ocrStatus'); const debug=document.getElementById('ocrDebug'); if(!btn||!file) return; btn.addEventListener('click',async()=>{ if(!file.files.length){ status.textContent='Önce fiş seçiniz'; return; } try{ status.textContent='OCR okunuyor...'; debug.textContent=''; const fd=new FormData(); fd.append('receipt',file.files[0]); const r=await fetch('/api/ocr',{method:'POST',body:fd}); const j=await r.json(); if(!j.ok) throw new Error(j.error||'OCR hatası'); setVal('companyName',j.companyName); setVal('documentDate',j.documentDate); setVal('receiptNo',j.receiptNo); setVal('documentNo',j.documentNo); setVal('taxBase',j.taxBase); setVal('vatAmount',j.vatAmount); setVal('totalAmount',j.totalAmount); status.textContent='OCR tamamlandı. Lütfen kontrol edin.'; debug.textContent=JSON.stringify(j.debug||{},null,2); }catch(e){ status.textContent='OCR hata: '+e.message; debug.textContent=e.stack||e.message; } }); });
+(function(){
+  console.log('Modüler Masraf OCR v18.9 rollback yüklendi');
+  function $(id){return document.getElementById(id)}
+  function setVal(id,v){const el=$(id); if(el && v!==undefined && v!==null && String(v).trim()!=='') el.value=v}
+  function setStatus(msg){const el=$('ocrStatus'); if(el) el.textContent=msg}
+  function setDebug(obj){const el=$('ocrDebug'); if(el) el.textContent=typeof obj==='string'?obj:JSON.stringify(obj,null,2)}
+  async function runOcrNow(ev){
+    if(ev) ev.preventDefault();
+    const fileInput=$('receipt');
+    if(!fileInput || !fileInput.files || !fileInput.files[0]){ setStatus('Önce fiş/fatura seçiniz.'); return; }
+    setStatus('OCR okunuyor...'); setDebug('');
+    const fd=new FormData(); fd.append('receipt', fileInput.files[0]);
+    try{
+      const r=await fetch('/api/ocr',{method:'POST',body:fd});
+      const data=await r.json();
+      setDebug(data);
+      if(!data.ok){ setStatus('OCR hata: '+(data.error||'Bilinmeyen hata')); return; }
+      const p=data.parsed||{};
+      setVal('companyName',p.companyName);
+      setVal('documentDate',p.documentDate);
+      setVal('documentNo',p.documentNo);
+      setVal('receiptNo',p.receiptNo);
+      setVal('taxBase',p.taxBase);
+      setVal('vatAmount',p.vatAmount);
+      setVal('amount',p.totalAmount||p.amount);
+      setVal('expenseDate',p.documentDate);
+      setStatus('OCR tamamlandı. Lütfen alanları kontrol ediniz.');
+    }catch(e){ setStatus('OCR bağlantı hatası: '+e.message); setDebug(String(e.stack||e)); }
+  }
+  window.runOcrNow=runOcrNow;
+  document.addEventListener('DOMContentLoaded',function(){
+    const btn=$('ocrBtn'); if(btn) btn.addEventListener('click',runOcrNow);
+  });
+})();
