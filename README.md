@@ -28,3 +28,11 @@ ozan@modulerotomasyon.com
 
 ## Önemli
 Bu sürümde PostgreSQL/Prisma yoktur. Amaç çalışan v18.10 OCR yapısına geri dönmektir.
+
+
+## v18.11 TL + Eski Layout İyileştirme
+- Eski beğenilen 4 kolon düzenine dönüldü: Masraf Türü, Masraf Tarihi, Toplam Tutar, Ödeme Şekli ilk satırda.
+- Tüm tutar alanları TL olarak sabitlendi.
+- Vergi Matrahı, KDV ve Toplam Tutar etiketlerine TL eklendi.
+- Araç Plakası alanı geri eklendi.
+- OCR debug üretimde ekranı kaplamasın diye açılır/kapanır teknik detay alanına taşındı.

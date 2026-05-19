@@ -1,5 +1,5 @@
 (function(){
-  console.log('Modüler Masraf OCR v18.9 rollback yüklendi');
+  console.log('Modüler Masraf OCR v18.11 TL UI yüklendi');
   function $(id){return document.getElementById(id)}
   function setVal(id,v){const el=$(id); if(el && v!==undefined && v!==null && String(v).trim()!=='') el.value=v}
   function setStatus(msg){const el=$('ocrStatus'); if(el) el.textContent=msg}
@@ -24,7 +24,7 @@
       setVal('vatAmount',p.vatAmount);
       setVal('amount',p.totalAmount||p.amount);
       setVal('expenseDate',p.documentDate);
-      setStatus('OCR tamamlandı. Lütfen alanları kontrol ediniz.');
+      setStatus('OCR tamamlandı. Lütfen alanları kontrol ediniz. Tutarlar TL olarak kabul edilir.');
     }catch(e){ setStatus('OCR bağlantı hatası: '+e.message); setDebug(String(e.stack||e)); }
   }
   window.runOcrNow=runOcrNow;
