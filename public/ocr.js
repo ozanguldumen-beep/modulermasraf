@@ -1,5 +1,5 @@
 (function(){
-  console.log('Modüler Masraf OCR v18.11 TL UI yüklendi');
+  console.log('Modüler Masraf OCR v18.12 OCR Parser Tool yüklendi');
   function $(id){return document.getElementById(id)}
   function setVal(id,v){const el=$(id); if(el && v!==undefined && v!==null && String(v).trim()!=='') el.value=v}
   function setStatus(msg){const el=$('ocrStatus'); if(el) el.textContent=msg}
@@ -23,8 +23,10 @@
       setVal('taxBase',p.taxBase);
       setVal('vatAmount',p.vatAmount);
       setVal('amount',p.totalAmount||p.amount);
+      setVal('expenseType',p.expenseType);
+      setVal('paymentType',p.paymentMethod);
       setVal('expenseDate',p.documentDate);
-      setStatus('OCR tamamlandı. Lütfen alanları kontrol ediniz. Tutarlar TL olarak kabul edilir.');
+      setStatus("OCR tamamlandı. Google Vision okudu; OpenAI parser varsa alanları düzeltti. Lütfen kontrol ediniz. Tutarlar TL'dir.");
     }catch(e){ setStatus('OCR bağlantı hatası: '+e.message); setDebug(String(e.stack||e)); }
   }
   window.runOcrNow=runOcrNow;

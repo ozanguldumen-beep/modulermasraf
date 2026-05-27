@@ -1,38 +1,34 @@
-# Modüler Masraf Sistemi v18.10 Rollback
+# Modüler Masraf v18.12 OCR Parser Tool
 
-Bu paket v19/PostgreSQL denemesi sonrası çalışan OCR hattına geri dönüş içindir.
+Bu sürüm çalışan v18 tabanını korur. PostgreSQL/Prisma yoktur.
 
-## İçerik
-- Node.js + Express
-- Session login
-- JSON tabanlı data/db.json
-- Google Vision OCR
-- HEIC/HEIF -> JPEG server dönüşümü
-- Sharp ile görsel optimizasyonu
-- Fiş No görünür
-- Simetrik masraf formu
-- Mobil öncelikli arayüz
+## OCR akışı
+
+1. Google Vision görseli okur.
+2. Ham OCR metni çıkar.
+3. OPENAI_API_KEY varsa OpenAI, metni JSON alanlarına yerleştirir.
+4. OpenAI yoksa eski regex parser yedek olarak çalışır.
 
 ## Railway Variables
+
 ```text
 OCR_PROVIDER=google
 GOOGLE_VISION_API_KEY=...
-SESSION_SECRET=moduler_masraf_secret
+OPENAI_API_KEY=...     # opsiyonel ama önerilir
+OPENAI_MODEL=gpt-4o-mini
+SESSION_SECRET=moduler_masraf_v18_secret
 ```
 
-## Giriş
+## Varsayılan giriş
+
 ```text
 ozan@modulerotomasyon.com
 123456
 ```
 
-## Önemli
-Bu sürümde PostgreSQL/Prisma yoktur. Amaç çalışan v18.10 OCR yapısına geri dönmektir.
+## Notlar
 
-
-## v18.11 TL + Eski Layout İyileştirme
-- Eski beğenilen 4 kolon düzenine dönüldü: Masraf Türü, Masraf Tarihi, Toplam Tutar, Ödeme Şekli ilk satırda.
-- Tüm tutar alanları TL olarak sabitlendi.
-- Vergi Matrahı, KDV ve Toplam Tutar etiketlerine TL eklendi.
-- Araç Plakası alanı geri eklendi.
-- OCR debug üretimde ekranı kaplamasın diye açılır/kapanır teknik detay alanına taşındı.
+- Tüm tutarlar TL/TRY kabul edilir.
+- Belge No emin değilse boş bırakılır.
+- Fiş No ayrı alana yazılır.
+- Yiyecek/Cafe vb. metinlerden Masraf Türü otomatik Yemek önerilir.
