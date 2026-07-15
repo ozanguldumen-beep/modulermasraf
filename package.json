@@ -1,6 +1,6 @@
 {
   "name": "moduler-masraf-enterprise-v19",
-  "version": "19.0.0",
+  "version": "19.0.1",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
