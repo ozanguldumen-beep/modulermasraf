@@ -16,3 +16,7 @@ PostgreSQL + Prisma, çalışanlar, izinler, kural merkezi, OCR, onay, finans, E
 ## Not
 Kural oluşturma/değiştirme yalnızca Ozan Güldümen ve Celal Eşli içindir.
 `/health` sağlık kontrolüdür.
+
+
+## v19.0.2 Migration Safe Fix
+Mevcut PostgreSQL verileri korunur. `User`, `Expense`, `Rule` ve `SystemSetting` tablolarına eklenen `updatedAt` alanlarında `@default(now())` bulunduğu için eski satırlar silinmeden şema güncellenebilir. `--force-reset` kullanmayın.

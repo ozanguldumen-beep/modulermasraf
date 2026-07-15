@@ -56,7 +56,7 @@ model User {
   approvals          Approval[]
   audits             AuditLog[]  @relation("Actor")
   createdAt          DateTime    @default(now())
-  updatedAt          DateTime    @updatedAt
+  updatedAt          DateTime    @default(now()) @updatedAt
 }
 
 model Department {
@@ -121,7 +121,7 @@ model Expense {
   approvals    Approval[]
   payment      Payment?
   createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  updatedAt    DateTime      @default(now()) @updatedAt
 }
 
 model Approval {
@@ -159,7 +159,7 @@ model Rule {
   validTo         DateTime?
   createdById     String
   createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  updatedAt       DateTime   @default(now()) @updatedAt
 }
 
 model Payment {
@@ -190,7 +190,7 @@ model OcrUsage {
 model SystemSetting {
   key       String   @id
   valueJson Json
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 model AuditLog {
