@@ -1,0 +1,1 @@
+const {PrismaClient}=require('@prisma/client');module.exports=global.__p||(global.__p=new PrismaClient());

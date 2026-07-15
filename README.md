@@ -1,10 +1,18 @@
-# Modüler Masraf v18.12.1 - Kayıt Düzeltmesi
+# Modüler Masraf Enterprise v19
 
-Bu sürüm `ENOENT: no such file or directory, open '/app/uploads/...'` hatasını düzeltir.
+PostgreSQL + Prisma, çalışanlar, izinler, kural merkezi, OCR, onay, finans, Excel, API kullanımı ve audit log içeren modüler başlangıç paketi.
 
-## Kurulum
-1. Mevcut `server.js` dosyanızı bu paketteki dosyayla değiştirin.
-2. `uploads/.gitkeep` ve `data/.gitkeep` dosyalarını GitHub'a ekleyin.
-3. Railway deploy tamamlandıktan sonra fişi yeniden kaydedin.
+## Railway
+1. PostgreSQL ekleyin ve `DATABASE_URL` referansını bağlayın.
+2. `SESSION_SECRET`, `GOOGLE_VISION_API_KEY`, `OPENAI_API_KEY`, `OPENAI_MODEL=gpt-4o-mini` ekleyin.
+3. Railway Volume ekleyip `/data` yoluna bağlayın.
+4. `UPLOAD_DIR=/data/uploads` ekleyin.
+5. ZIP içeriğini GitHub köküne yükleyin.
 
-Uygulama açılırken `data` ve `uploads` klasörleri otomatik oluşturulur.
+## İlk giriş
+- ozan@modulerotomasyon.com
+- 123456
+
+## Not
+Kural oluşturma/değiştirme yalnızca Ozan Güldümen ve Celal Eşli içindir.
+`/health` sağlık kontrolüdür.

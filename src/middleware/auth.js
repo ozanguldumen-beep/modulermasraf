@@ -1,4 +1,1 @@
-function requireAuth(req,res,next){ if(!req.session.user) return res.redirect('/login'); next(); }
-function requireRole(...roles){ return (req,res,next)=>{ const u=req.session.user; if(!u) return res.redirect('/login'); if(!roles.includes(u.role)) return res.status(403).send('Yetkiniz yok'); next(); }; }
-function isPrivileged(user){ return ['ADMIN','PARTNER','PROCESS_MANAGER','ACCOUNTING','FINANCE','MANAGER'].includes(user?.role); }
-module.exports={requireAuth,requireRole,isPrivileged};
+const p=require('../config/db');async function currentUser(req){if(!req.session.userId)return null;return p.user.findUnique({where:{id:req.session.userId},include:{department:true,roles:{include:{role:true}}}})}async function requireAuth(req,res,next){const u=await currentUser(req);if(!u||!u.isActive)return res.redirect('/login');req.user=u;next()}function hasRole(u,n){return u.roles.some(x=>n.includes(x.role.name))}function partnersOnly(req,res,next){if(!req.user?.isPartner||!['Ozan Güldümen','Celal Eşli'].includes(req.user.name))return res.status(403).send('Sadece Ozan ve Celal değiştirebilir.');next()}module.exports={currentUser,requireAuth,hasRole,partnersOnly};

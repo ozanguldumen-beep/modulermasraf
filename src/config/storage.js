@@ -1,0 +1,1 @@
+const fs=require('fs'),path=require('path');const uploadDir=path.resolve(process.env.UPLOAD_DIR||path.join(process.cwd(),'uploads'));fs.mkdirSync(uploadDir,{recursive:true});module.exports={uploadDir};

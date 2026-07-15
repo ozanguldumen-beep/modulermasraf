@@ -1,0 +1,1 @@
+const r=require('express').Router(),p=require('../../config/db');r.get('/health',async(q,s)=>{try{await p.$queryRaw`SELECT 1`;s.json({ok:true,version:'19.0.0',database:true,googleVision:!!process.env.GOOGLE_VISION_API_KEY,openai:!!process.env.OPENAI_API_KEY})}catch(e){s.status(500).json({ok:false,error:e.message})}});module.exports=r;

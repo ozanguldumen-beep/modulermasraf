@@ -1,0 +1,1 @@
+const p=require('../../config/db');exports.audit=x=>p.auditLog.create({data:x});
