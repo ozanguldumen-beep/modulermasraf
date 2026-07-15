@@ -1,8 +1,0 @@
-<%- include('partials_header') %>
-<section class="card">
-  <h1>Raporlar</h1>
-  <div class="table-wrap"><table><thead><tr><th>Durum</th><th>Adet</th><th>Toplam</th></tr></thead><tbody>
-  <% rows.forEach(r => { %><tr><td><%= r.status %></td><td><%= r.count %></td><td><%= Number(r.total).toFixed(2) %></td></tr><% }) %>
-  </tbody></table></div>
-</section>
-<%- include('partials_footer') %>
