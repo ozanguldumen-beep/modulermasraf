@@ -10,13 +10,24 @@ try { heicConvert = require('heic-convert'); } catch (_) {}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DB_PATH = path.join(__dirname, 'data', 'db.json');
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024 } });
+
+const DATA_DIR = path.join(__dirname, 'data');
+const UPLOAD_DIR = path.join(__dirname, 'uploads');
+const DB_PATH = path.join(DATA_DIR, 'db.json');
+
+// Railway/GitHub boş klasörleri taşımayabilir. Uygulama açılırken kesin oluştur.
+fs.mkdirSync(DATA_DIR, { recursive: true });
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 12 * 1024 * 1024 }
+});
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use('/public', express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(UPLOAD_DIR));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'moduler_masraf_v18_secret',
   resave: false,
@@ -24,8 +35,30 @@ app.use(session({
   cookie: { maxAge: 1000 * 60 * 60 * 12 }
 }));
 
-function readDb(){ return JSON.parse(fs.readFileSync(DB_PATH, 'utf8')); }
-function writeDb(db){ fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2)); }
+function ensureDb(){
+  if(!fs.existsSync(DB_PATH)){
+    const initialDb = { users: [], expenses: [] };
+    fs.writeFileSync(DB_PATH, JSON.stringify(initialDb, null, 2), 'utf8');
+  }
+}
+
+function readDb(){
+  ensureDb();
+  const raw = fs.readFileSync(DB_PATH, 'utf8').trim();
+  if(!raw) return { users: [], expenses: [] };
+
+  const db = JSON.parse(raw);
+  if(!Array.isArray(db.users)) db.users = [];
+  if(!Array.isArray(db.expenses)) db.expenses = [];
+  return db;
+}
+
+function writeDb(db){
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  const tempPath = `${DB_PATH}.tmp`;
+  fs.writeFileSync(tempPath, JSON.stringify(db, null, 2), 'utf8');
+  fs.renameSync(tempPath, DB_PATH);
+}
 function currentUser(req){ if(!req.session.userId) return null; return readDb().users.find(u=>u.id===req.session.userId && u.active); }
 function requireAuth(req,res,next){ const u=currentUser(req); if(!u) return res.redirect('/login'); req.user=u; next(); }
 function isManager(u){ return (u.roles||[]).some(r=>['Şirket Ortağı','Sistem Yöneticisi','Satış Müdürü','Finans Müdürü','Muhasebe Müdürü','Teknik Müdür'].includes(r)); }
@@ -35,15 +68,15 @@ function esc(s){ return String(s ?? '').replace(/[&<>"']/g, m=>({ '&':'&amp;','<
 function layout(req, title, body){
   const u=currentUser(req);
   return `<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><link rel="stylesheet" href="/public/style.css"></head><body>
-<header><div class="brand">MODÜLER MASRAF v18.12</div>${u?`<nav><a href="/">Ana Sayfa</a><a href="/expenses/new">Masraf Ekle</a><a href="/expenses">Masraflarım</a>${isManager(u)?'<a href="/approvals">Onaylar</a><a href="/admin">Yönetim</a>':''}<a href="/logout">Çıkış</a></nav>`:''}</header>
+<header><div class="brand">MODÜLER MASRAF v18.12.1</div>${u?`<nav><a href="/">Ana Sayfa</a><a href="/expenses/new">Masraf Ekle</a><a href="/expenses">Masraflarım</a>${isManager(u)?'<a href="/approvals">Onaylar</a><a href="/admin">Yönetim</a>':''}<a href="/logout">Çıkış</a></nav>`:''}</header>
 <main>${body}</main>
 ${u?`<div class="bottomnav"><a href="/"><span>⌂</span>Ana</a><a href="/expenses/new"><span>＋</span>Ekle</a><a href="/expenses"><span>☰</span>Masraf</a><a href="${isManager(u)?'/approvals':'/profile'}"><span>✓</span>${isManager(u)?'Onay':'Profil'}</a></div>`:''}
 <script src="/public/ocr.js?v=1812"></script></body></html>`;
 }
 
-app.get('/health',(req,res)=>res.json({ok:true,version:'18.12.0'}));
-app.get('/api/version',(req,res)=>res.json({version:'18.12.0',name:'v18.12 OCR Parser Tool'}));
-app.get('/api/ocr-status',(req,res)=>res.json({provider:process.env.OCR_PROVIDER||'google',googleVision:!!process.env.GOOGLE_VISION_API_KEY,openai:!!process.env.OPENAI_API_KEY,openaiModel:process.env.OPENAI_MODEL||'gpt-4o-mini',version:'18.12.0',currency:'TRY'}));
+app.get('/health',(req,res)=>res.json({ok:true,version:'18.12.1'}));
+app.get('/api/version',(req,res)=>res.json({version:'18.12.1',name:'v18.12.1 OCR Parser Tool + Save Fix'}));
+app.get('/api/ocr-status',(req,res)=>res.json({provider:process.env.OCR_PROVIDER||'google',googleVision:!!process.env.GOOGLE_VISION_API_KEY,openai:!!process.env.OPENAI_API_KEY,openaiModel:process.env.OPENAI_MODEL||'gpt-4o-mini',version:'18.12.1',currency:'TRY'}));
 
 app.get('/login',(req,res)=>res.send(layout(req,'Giriş',`<section class="card small"><h1>Giriş</h1><form method="post" action="/login"><label>Email</label><input name="email" type="email" required value="ozan@modulerotomasyon.com"><label>Şifre</label><input name="password" type="password" required value="123456"><button>Giriş Yap</button></form><p class="muted">Varsayılan şifre: 123456</p></section>`)));
 app.post('/login',(req,res)=>{ const {email,password}=req.body; const db=readDb(); const u=db.users.find(x=>x.email.toLowerCase()===String(email||'').toLowerCase() && x.active); if(!u || u.password!==password) return res.send(layout(req,'Giriş',`<section class="card small"><h1>Giriş</h1><p style="color:#b42318;font-weight:800">Giriş hatalı.</p><form method="post" action="/login"><label>Email</label><input name="email" type="email" required value="${esc(email)}"><label>Şifre</label><input name="password" type="password" required><button>Giriş Yap</button></form></section>`)); req.session.userId=u.id; res.redirect('/'); });
@@ -53,7 +86,68 @@ app.get('/',requireAuth,(req,res)=>{ const db=readDb(); const mine=db.expenses.f
 
 app.get('/expenses/new',requireAuth,(req,res)=>res.send(layout(req,'Masraf Ekle',`<section class="card"><h1>Yeni Masraf</h1><form method="post" action="/expenses" enctype="multipart/form-data"><div class="grid"><div><label>Masraf Türü</label><select id="expenseType" name="expenseType"><option>Yakıt</option><option>Araç Yıkama</option><option>Yemek</option><option>Taksi</option><option>Otopark</option><option>Kargo/Kurye</option><option>Uçak Bileti</option><option>Konaklama</option><option>Ofis Gideri</option><option>Temsil/Ağırlama</option><option>Diğer</option></select></div><div><label>Masraf Tarihi</label><input id="expenseDate" name="expenseDate" type="date"></div><div><label>Toplam Tutar (TL)</label><input id="amount" name="amount" inputmode="decimal" required></div><div><label>Ödeme Şekli</label><select id="paymentType" name="paymentType"><option>Kişisel Kart</option><option>Nakit</option><option>Şirket Kartı</option><option>Avans</option></select><input type="hidden" name="currency" value="TRY"></div><div><label>Firma Ünvanı</label><input id="companyName" name="companyName"></div><div><label>Belge Tarihi</label><input id="documentDate" name="documentDate" type="date"></div><div><label>Belge Numarası</label><input id="documentNo" name="documentNo"></div><div><label>Fiş No</label><input id="receiptNo" name="receiptNo"></div><div><label>Vergi Matrahı (TL)</label><input id="taxBase" name="taxBase" inputmode="decimal"></div><div><label>KDV Tutarı (TL)</label><input id="vatAmount" name="vatAmount" inputmode="decimal"></div><div><label>Araç Plakası</label><input id="vehiclePlate" name="vehiclePlate" placeholder="34 ABC 123"></div><div><label>Müşteri / Bayi</label><input name="customer"></div><div class="full"><label>Fiş / Fatura Görseli</label><input id="receipt" name="receipt" type="file" accept="image/*,.heic,.heif,application/pdf" capture="environment"></div></div><button id="ocrBtn" class="secondary" type="button">Fişi Oku</button><div id="ocrStatus" class="ocr-status">Fiş seçip Fişi Oku butonuna basınız. Tüm tutarlar TL kabul edilir.</div><details class="ocr-details"><summary>OCR teknik detayları</summary><div id="ocrDebug" class="ocr-debug"></div></details><label>Açıklama</label><textarea name="description"></textarea><button>Masrafı Kaydet</button></form></section>`)));
 
-app.post('/expenses',requireAuth,upload.single('receipt'),(req,res)=>{ const db=readDb(); const id='e'+Date.now(); let imagePath=''; if(req.file){ const ext=path.extname(req.file.originalname||'').toLowerCase() || '.jpg'; const filename=id+ext; fs.writeFileSync(path.join(__dirname,'uploads',filename),req.file.buffer); imagePath='/uploads/'+filename; } db.expenses.unshift({ id, userId:req.user.id, userName:req.user.name, status:'Onay Bekliyor', createdAt:new Date().toISOString(), imagePath, ...req.body }); writeDb(db); res.redirect('/expenses'); });
+app.post('/expenses', requireAuth, upload.single('receipt'), (req, res) => {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
+    const db = readDb();
+    const id = 'e' + Date.now();
+    let imagePath = '';
+
+    if (req.file) {
+      const originalExt = path.extname(req.file.originalname || '').toLowerCase();
+      const allowedExtensions = new Set([
+        '.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif', '.pdf'
+      ]);
+
+      let ext = allowedExtensions.has(originalExt) ? originalExt : '';
+      if (!ext) {
+        const mimeToExt = {
+          'image/jpeg': '.jpg',
+          'image/png': '.png',
+          'image/webp': '.webp',
+          'image/heic': '.heic',
+          'image/heif': '.heif',
+          'application/pdf': '.pdf'
+        };
+        ext = mimeToExt[req.file.mimetype] || '.jpg';
+      }
+
+      const filename = `${id}${ext}`;
+      fs.writeFileSync(path.join(UPLOAD_DIR, filename), req.file.buffer);
+      imagePath = `/uploads/${filename}`;
+    }
+
+    db.expenses.unshift({
+      id,
+      userId: req.user.id,
+      userName: req.user.name,
+      status: 'Onay Bekliyor',
+      createdAt: new Date().toISOString(),
+      imagePath,
+      ...req.body,
+      currency: 'TRY'
+    });
+
+    writeDb(db);
+    return res.redirect('/expenses');
+  } catch (error) {
+    console.error('Masraf kayıt hatası:', error);
+    return res.status(500).send(
+      layout(
+        req,
+        'Kayıt Hatası',
+        `<section class="card small">
+          <h1>Masraf kaydedilemedi</h1>
+          <p style="color:#b42318;font-weight:800">${esc(error.message)}</p>
+          <p class="muted">Lütfen tekrar deneyin. Hata devam ederse Railway loglarını kontrol edin.</p>
+          <a class="buttonlink" href="/expenses/new">Masraf ekranına dön</a>
+        </section>`
+      )
+    );
+  }
+});
 
 app.get('/expenses',requireAuth,(req,res)=>{ const db=readDb(); const rows=db.expenses.filter(e=>e.userId===req.user.id || isManager(req.user)).map(e=>`<tr><td>${esc(e.createdAt?.slice(0,10))}</td><td>${esc(e.userName)}</td><td>${esc(e.expenseType)}</td><td>${esc(e.companyName)}</td><td>${money(e.amount)} TL</td><td><span class="badge">${esc(e.status)}</span></td><td><a href="/expenses/${e.id}">Aç</a></td></tr>`).join(''); res.send(layout(req,'Masraflar',`<section class="card"><h1>Masraflar</h1><table><thead><tr><th>Tarih</th><th>Personel</th><th>Tür</th><th>Firma</th><th>Tutar</th><th>Durum</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="7">Kayıt yok.</td></tr>'}</tbody></table></section>`)); });
 app.get('/expenses/:id',requireAuth,(req,res)=>{ const db=readDb(); const e=db.expenses.find(x=>x.id===req.params.id); if(!e) return res.status(404).send('Bulunamadı'); if(e.userId!==req.user.id && !isManager(req.user)) return res.status(403).send('Yetki yok'); res.send(layout(req,'Masraf Detay',`<section class="card"><h1>Masraf Detay</h1><div class="grid two"><div>${e.imagePath?`<img src="${esc(e.imagePath)}" style="width:100%;border-radius:14px;border:1px solid #e5e7eb">`:'<p>Görsel yok</p>'}</div><div><p><b>Personel:</b> ${esc(e.userName)}</p><p><b>Firma:</b> ${esc(e.companyName)}</p><p><b>Belge Tarihi:</b> ${esc(e.documentDate)}</p><p><b>Belge No:</b> ${esc(e.documentNo)}</p><p><b>Fiş No:</b> ${esc(e.receiptNo)}</p><p><b>Matrah:</b> ${money(e.taxBase)} TL</p><p><b>KDV:</b> ${money(e.vatAmount)} TL</p><p><b>Toplam:</b> ${money(e.amount)} TL</p><p><b>Para Birimi:</b> TL</p>${e.vehiclePlate?`<p><b>Araç Plakası:</b> ${esc(e.vehiclePlate)}</p>`:''}<p><b>Durum:</b> <span class="badge">${esc(e.status)}</span></p>${isManager(req.user)?`<form method="post" action="/expenses/${e.id}/status"><button name="status" value="Onaylandı">Onayla</button><button class="danger" name="status" value="Reddedildi">Reddet</button></form>`:''}</div></div></section>`)); });
@@ -260,8 +354,8 @@ app.post('/api/ocr',requireAuth,upload.single('receipt'),async(req,res)=>{
     const fallback=parseReceipt(text);
     const aiResult=await openAiReceiptParser(text, fallback);
     const parsed=aiResult.parsed;
-    res.json({ok:true,provider:'google',version:'18.12.0',textLength:text.length,mimeType:req.file.mimetype,fileSize:req.file.size,ai:aiResult.ai,aiModel:aiResult.aiModel||null,aiError:aiResult.aiError||null,parsed,aiRaw:aiResult.aiRaw||null,text:text.slice(0,2500)});
+    res.json({ok:true,provider:'google',version:'18.12.1',textLength:text.length,mimeType:req.file.mimetype,fileSize:req.file.size,ai:aiResult.ai,aiModel:aiResult.aiModel||null,aiError:aiResult.aiError||null,parsed,aiRaw:aiResult.aiRaw||null,text:text.slice(0,2500)});
   }catch(e){ res.status(500).json({ok:false,error:e.message,provider:'google',debug:{mimeType:req.file?.mimetype,fileSize:req.file?.size}}); }
 });
 
-app.listen(PORT,()=>console.log(`Modüler Masraf v18.12.0 çalışıyor: ${PORT}`));
+app.listen(PORT,()=>console.log(`Modüler Masraf v18.12.1 çalışıyor: ${PORT}`));
